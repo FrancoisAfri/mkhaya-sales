@@ -17,6 +17,8 @@ class TemplateBuilder
         'external_id' => 'INV-000123', 'region' => 'Gauteng', 'salesperson' => 'REP01', 'category' => 'Baking',
         'subcategory' => 'Pizza', 'brand' => 'Example Brand', 'unit' => 'CASE', 'pack_size' => '12 x 500g',
         'customer_group' => 'Retail', 'status' => 'active', 'alternative_name' => 'Example Store',
+        'name' => 'Gauteng net sales December', 'metric' => 'net_value', 'method' => 'fixed', 'period_type' => 'monthly',
+        'start_date' => '2026-12-01', 'end_date' => '2026-12-31', 'target_value' => 500000, 'customer' => '', 'product' => '',
     ];
 
     public function build(string $target, ?ReportLayout $layout = null): string

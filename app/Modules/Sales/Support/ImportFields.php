@@ -15,6 +15,7 @@ final class ImportFields
         'sales' => 'Sales (daily or historical)',
         'products' => 'Products',
         'customers' => 'Customers',
+        'targets' => 'Targets',
     ];
 
     public static function for(string $target): array
@@ -63,6 +64,27 @@ final class ImportFields
                 'salesperson' => ['label' => 'Salesperson', 'type' => 'text', 'aliases' => ['rep', 'salesperson', 'sales rep']],
                 'distribution_centre' => ['label' => 'Distribution centre', 'type' => 'text', 'aliases' => ['dc', 'depot', 'distribution centre']],
                 'status' => ['label' => 'Status (active/inactive)', 'type' => 'text', 'aliases' => ['status', 'active']],
+            ],
+            'targets' => [
+                'name' => ['label' => 'Target name', 'type' => 'text', 'required' => true, 'aliases' => ['target', 'target name', 'name']],
+                'metric' => ['label' => 'Measure (net_value, gross_value, quantity, active_customers, transactions)', 'type' => 'text', 'aliases' => ['measure', 'metric', 'kpi']],
+                'method' => ['label' => 'Rule (fixed, minimum, maximum, range)', 'type' => 'text', 'aliases' => ['rule', 'method', 'type']],
+                'period_type' => ['label' => 'Period (monthly, quarterly, annual…)', 'type' => 'text', 'aliases' => ['period', 'period type', 'frequency']],
+                'start_date' => ['label' => 'Start date', 'type' => 'date', 'required' => true, 'aliases' => ['start', 'from', 'start date', 'from date']],
+                'end_date' => ['label' => 'End date', 'type' => 'date', 'required' => true, 'aliases' => ['end', 'to', 'end date', 'to date']],
+                'target_value' => ['label' => 'Target value', 'type' => 'number', 'required' => true, 'aliases' => ['target', 'value', 'target value', 'amount']],
+                'target_value_max' => ['label' => 'Upper value (range)', 'type' => 'number', 'aliases' => ['max', 'upper', 'to value']],
+                'customer' => ['label' => 'Customer (code or name)', 'type' => 'text', 'aliases' => ['customer', 'customer code', 'account']],
+                'customer_group' => ['label' => 'Customer group', 'type' => 'text', 'aliases' => ['customer group', 'channel']],
+                'product' => ['label' => 'Product (code or name)', 'type' => 'text', 'aliases' => ['product', 'product code', 'sku']],
+                'category' => ['label' => 'Product category', 'type' => 'text', 'aliases' => ['category']],
+                'brand' => ['label' => 'Brand', 'type' => 'text', 'aliases' => ['brand']],
+                'region' => ['label' => 'Region', 'type' => 'text', 'aliases' => ['region', 'area', 'province']],
+                'business_unit' => ['label' => 'Business unit', 'type' => 'text', 'aliases' => ['business unit', 'division']],
+                'sales_team' => ['label' => 'Sales team', 'type' => 'text', 'aliases' => ['team', 'sales team']],
+                'salesperson' => ['label' => 'Salesperson', 'type' => 'text', 'aliases' => ['rep', 'salesperson', 'sales rep']],
+                'distribution_centre' => ['label' => 'Distribution centre', 'type' => 'text', 'aliases' => ['dc', 'depot', 'distribution centre']],
+                'notes' => ['label' => 'Notes', 'type' => 'text', 'aliases' => ['notes', 'comment']],
             ],
             default => abort(404),
         };

@@ -29,6 +29,7 @@ class ImportBatch extends SalesModel
         return match ($this->target) {
             'products' => 'imports.products',
             'customers' => 'imports.customers',
+            'targets' => 'targets.create',
             default => 'imports.historical',
         };
     }

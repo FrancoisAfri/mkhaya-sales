@@ -40,17 +40,20 @@ class SalesNotifier
         }
     }
 
-    public function alert(int $companyId, string $permission, string $title, string $body, string $url, string $dedupeKey): void
+    /** @return bool whether it was sent (false when nobody may receive it, or it was already raised) */
+    public function alert(int $companyId, string $permission, string $title, string $body, string $url, string $dedupeKey, int $quietDays = 1): bool
     {
-        $this->send($this->recipients($companyId, $permission), $title, $body, $url, $dedupeKey);
+        return $this->send($this->recipients($companyId, $permission), $title, $body, $url, $dedupeKey, $quietDays);
     }
 
-    private function send($users, string $title, string $body, string $url, string $dedupeKey): void
+    private function send($users, string $title, string $body, string $url, string $dedupeKey, int $quietDays = 1): bool
     {
-        if ($users->isEmpty() || ! Cache::add("sales-alert:{$dedupeKey}", 1, now()->addDay())) {
-            return;
+        if ($users->isEmpty() || ! Cache::add("sales-alert:{$dedupeKey}", 1, now()->addDays($quietDays))) {
+            return false;
         }
         Notification::send($users, new SalesAlert($title, $body, $url));
+
+        return true;
     }
 
     private function recipients(int $companyId, string $permission, ?int $alsoUserId = null)

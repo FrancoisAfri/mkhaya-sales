@@ -57,7 +57,7 @@ const when = (s: string) => new Date(s).toLocaleString('en-ZA', { dateStyle: 'me
             <VSelect v-model="form.layout_id" :items="targetLayouts" item-title="name" item-value="id" clearable
                      label="Saved layout (recommended for a recurring report)" density="compact" variant="outlined" style="max-width: 460px"
                      :hint="targetLayouts.length ? 'Without a layout, columns are matched by their headings.' : 'No layouts yet — create one under File layouts, or let the system match headings.'" persistent-hint />
-            <VSelect v-if="form.target !== 'sales'" v-model="form.mode" :items="Object.entries(modes).map(([v, t]) => ({ value: v, title: t }))"
+            <VSelect v-if="!['sales', 'targets'].includes(form.target)" v-model="form.mode" :items="Object.entries(modes).map(([v, t]) => ({ value: v, title: t }))"
                      label="When a code already exists" density="compact" variant="outlined" class="mt-4" style="max-width: 460px" />
             <div class="d-flex gap-2 mt-4">
               <VBtn variant="text" @click="step = 1">Back</VBtn>

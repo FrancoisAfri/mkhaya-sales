@@ -70,6 +70,8 @@ Route::prefix('sales')->name('sales.')->group(function () {
     Route::get('targets', [TargetController::class, 'index'])->name('targets.index');
     Route::get('targets/approvals', [TargetController::class, 'approvals'])->name('targets.approvals');
     Route::get('targets/matrix', [TargetController::class, 'matrix'])->name('targets.matrix');
+    Route::get('targets/alerts', [TargetController::class, 'alerts'])->name('targets.alerts');
+    Route::post('targets/alerts', [TargetController::class, 'saveAlerts'])->name('targets.alerts.save');
     Route::post('targets/matrix', [TargetController::class, 'saveRule'])->name('targets.matrix.store');
     Route::put('targets/matrix/{id}', [TargetController::class, 'saveRule'])->whereNumber('id')->name('targets.matrix.update');
     Route::delete('targets/matrix/{id}', [TargetController::class, 'deleteRule'])->whereNumber('id')->name('targets.matrix.destroy');

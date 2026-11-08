@@ -136,7 +136,17 @@ class ImportEngine
                 $status = $errors ? 'invalid' : ($warnings ? 'warning' : 'valid');
             }
 
-            if (! $errors && $batch->target !== 'sales') {
+            if (! $errors && $batch->target === 'targets') {
+                [$data, $errors] = $this->resolveTarget($data, $matcher);
+                $status = $errors ? 'invalid' : 'valid';
+                $key = $errors ? null : md5(mb_strtolower($data['name']) . '|' . $data['start_date'] . '|' . $data['end_date']);
+                if ($key && \App\Modules\Sales\Models\Target::where('name', $data['name'])->where('start_date', $data['start_date'])->where('end_date', $data['end_date'])->where('status', '!=', 'archived')->exists()) {
+                    $status = 'duplicate';
+                    $errors[] = 'A target with this name and period already exists.';
+                }
+            }
+
+            if (! $errors && ! in_array($batch->target, ['sales', 'targets'], true)) {
                 [$status, $msg] = $this->masterStatus($batch, $data);
                 if ($msg) {
                     $status === 'invalid' || $status === 'duplicate' ? $errors[] = $msg : $warnings[] = $msg;
@@ -359,7 +369,7 @@ class ImportEngine
         try {
             $result = DB::transaction(fn () => $batch->target === 'sales'
                 ? $this->commitSales($batch)
-                : $this->commitMasters($batch));
+                : ($batch->target === 'targets' ? $this->commitTargets($batch, $by) : $this->commitMasters($batch)));
         } catch (\Throwable $e) {
             $batch->update(['status' => 'failed', 'error' => 'Nothing was saved: ' . $e->getMessage(), 'completed_at' => now()]);
             report($e);
@@ -460,6 +470,64 @@ class ImportEngine
         $matcher->remember($kind, $code, $name, $model->id);
 
         return $model->id;
+    }
+
+    /** Targets arrive as drafts and go through the approvals matrix like any other (§9.1, §11.6). */
+    private function commitTargets(ImportBatch $batch, ?User $by): array
+    {
+        $creator = $by?->id ?? $batch->uploaded_by;
+        $inserted = 0;
+        ImportRow::where('batch_id', $batch->id)->where('status', 'valid')->orderBy('row_number')->each(function ($row) use ($creator, &$inserted) {
+            \App\Modules\Sales\Models\Target::create(collect($row->data)->only(['name', 'metric', 'method', 'period_type', 'start_date', 'end_date', 'target_value', 'target_value_max', 'dimensions', 'notes'])->all()
+                + ['status' => 'draft', 'created_by' => $creator]);
+            $inserted++;
+        });
+
+        return ['inserted_rows' => $inserted, 'updated_rows' => 0];
+    }
+
+    /** @return array{0: array, 1: string[]} */
+    private function resolveTarget(array $d, MasterMatcher $matcher): array
+    {
+        $errors = [];
+        $d['metric'] = strtolower(str_replace([' ', '-'], '_', $d['metric'] ?? 'net_value'));
+        $d['method'] = strtolower($d['method'] ?? 'fixed');
+        $d['period_type'] = strtolower(str_replace([' ', '-'], '_', $d['period_type'] ?? 'custom'));
+        $T = \App\Modules\Sales\Models\Target::class;
+        if (! isset($T::METRICS[$d['metric']])) {
+            $errors[] = "Unknown measure \"{$d['metric']}\".";
+        }
+        if (! isset($T::METHODS[$d['method']])) {
+            $errors[] = "Unknown rule \"{$d['method']}\".";
+        }
+        if (! in_array($d['period_type'], $T::PERIODS, true)) {
+            $errors[] = "Unknown period \"{$d['period_type']}\".";
+        }
+        if (($d['end_date'] ?? '') < ($d['start_date'] ?? '')) {
+            $errors[] = 'End date is before start date.';
+        }
+        if ($d['method'] === 'range' && (($d['target_value_max'] ?? null) === null || $d['target_value_max'] < $d['target_value'])) {
+            $errors[] = 'A range needs an upper value above the target value.';
+        }
+
+        $dims = [];
+        $lookups = ['customer_group' => 'customer_groups', 'category' => 'product_categories', 'brand' => 'product_brands', 'region' => 'regions',
+            'business_unit' => 'business_units', 'sales_team' => 'sales_teams', 'salesperson' => 'salespeople', 'distribution_centre' => 'distribution_centres'];
+        foreach (['customer', 'product'] as $k) {
+            if (! empty($d[$k])) {
+                $id = $k === 'customer' ? $matcher->customer($d[$k], $d[$k]) : $matcher->product($d[$k], $d[$k]);
+                $id ? $dims["{$k}_id"] = $id : $errors[] = ucfirst($k) . " \"{$d[$k]}\" not found.";
+            }
+        }
+        foreach ($lookups as $k => $table) {
+            if (! empty($d[$k])) {
+                $id = $matcher->lookup($table, $d[$k]);
+                $id ? $dims["{$k}_id"] = $id : $errors[] = str_replace('_', ' ', ucfirst($k)) . " \"{$d[$k]}\" not found.";
+            }
+        }
+        $d['dimensions'] = $dims ?: null;
+
+        return [$d, $errors];
     }
 
     private function commitMasters(ImportBatch $batch): array

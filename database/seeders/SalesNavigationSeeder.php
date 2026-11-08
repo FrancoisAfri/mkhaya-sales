@@ -35,6 +35,7 @@ class SalesNavigationSeeder extends Seeder
             ['Targets', 'sales/targets'],
             ['Awaiting my approval', 'sales/targets/approvals'],
             ['Approval matrix', 'sales/targets/matrix'],
+            ['Alert settings', 'sales/targets/alerts'],
         ]],
         ['code' => 'sales_data_centre', 'name' => 'Data Import Centre', 'icon' => 'file-import', 'path' => '/sales/imports', 'ribbons' => [
             ['Import centre', 'sales/imports'],

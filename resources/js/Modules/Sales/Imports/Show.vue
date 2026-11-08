@@ -137,7 +137,7 @@ const brief = (d: any) => Object.entries(d).filter(([k]) => !['attributes', 'cus
         <div class="d-flex flex-wrap gap-3 align-center">
           <VSelect v-model="relayout.layout_id" :items="layouts" :item-title="(l: any) => `${l.name} (v${l.version})`" item-value="id" clearable label="Use a different layout"
                    density="compact" variant="outlined" hide-details style="max-width: 360px" />
-          <VSelect v-if="b.target !== 'sales'" v-model="relayout.mode" :items="['upsert', 'insert', 'update', 'reject']" label="Update rule" density="compact" variant="outlined" hide-details style="max-width: 200px" />
+          <VSelect v-if="!['sales', 'targets'].includes(b.target)" v-model="relayout.mode" :items="['upsert', 'insert', 'update', 'reject']" label="Update rule" density="compact" variant="outlined" hide-details style="max-width: 200px" />
           <VBtn variant="tonal" :loading="relayout.processing" @click="relayout.put(base, { preserveScroll: true })">Validate again</VBtn>
           <VBtn variant="text" href="/sales/layouts">Build a layout</VBtn>
         </div>

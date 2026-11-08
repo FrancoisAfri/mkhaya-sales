@@ -190,6 +190,30 @@ class TargetController extends Controller
         return back()->with('success', 'Rule switched off.');
     }
 
+    // ── Alert settings (§17.3) ──────────────────────────────────────────────────────────────────
+
+    public function alerts(Request $request): Response
+    {
+        abort_unless($request->user()->can('settings.manage'), 403);
+
+        return Inertia::render('Modules/Sales/Targets/Alerts', ['settings' => \App\Modules\Sales\Services\PerformanceAlerts::settingsFor($request->user()->company_id)]);
+    }
+
+    public function saveAlerts(Request $request): RedirectResponse
+    {
+        abort_unless($request->user()->can('settings.manage'), 403);
+        $data = $request->validate([
+            'target_achieved.enabled' => ['boolean'],
+            'target_at_risk.enabled' => ['boolean'], 'target_at_risk.threshold' => ['required', 'numeric', 'between:1,150'],
+            'unusual_movement.enabled' => ['boolean'], 'unusual_movement.threshold' => ['required', 'numeric', 'between:5,500'],
+            'run_time' => ['required', 'regex:/^([01]\d|2[0-3]):[0-5]\d$/'],
+        ]);
+        \Illuminate\Support\Facades\DB::table('sales_alert_settings')->updateOrInsert(['company_id' => $request->user()->company_id],
+            ['settings' => json_encode($data), 'updated_at' => now(), 'created_at' => now()]);
+
+        return back()->with('success', 'Alert settings saved.');
+    }
+
     // ── helpers ─────────────────────────────────────────────────────────────────────────────────
 
     private function validated(Request $request): array
