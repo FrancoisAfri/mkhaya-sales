@@ -147,7 +147,7 @@ class MasterDataController extends Controller
     private function validated(Request $request, array $def, ?int $ignoreId = null): array
     {
         $table = (new $def['model'])->getTable();
-        $companyId = $request->user()->company_id;
+        $companyId = \App\Modules\Sales\Support\SalesCompany::id();
         $rules = [];
         foreach ($def['fields'] as $f) {
             $r = [($f['required'] ?? false) ? 'required' : 'nullable'];

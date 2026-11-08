@@ -83,7 +83,7 @@ class LayoutController extends Controller
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:150', Rule::unique('report_layouts', 'name')->ignore($ignoreId)
-                ->where('company_id', $request->user()->company_id)],
+                ->where('company_id', \App\Modules\Sales\Support\SalesCompany::id())],
             'target' => ['required', Rule::in(array_keys(ImportFields::TARGETS))],
             'sheet' => ['nullable', 'string', 'max:120'],
             'header_row' => ['required', 'integer', 'min:1', 'max:100'],

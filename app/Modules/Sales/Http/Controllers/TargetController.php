@@ -157,7 +157,7 @@ class TargetController extends Controller
             'rules' => TargetApprovalRule::with('approver:id,email')->orderBy('min_value')->orderBy('step')->get(),
             'metrics' => Target::METRICS,
             'roles' => Role::whereHas('permissions', fn ($q) => $q->where('name', 'targets.approve'))->orderBy('name')->pluck('name'),
-            'users' => User::where('company_id', $request->user()->company_id)->where('status', 1)->get()
+            'users' => User::where('company_id', \App\Modules\Sales\Support\SalesCompany::id())->where('status', 1)->get()
                 ->filter(fn (User $u) => $u->can('targets.approve'))->map(fn ($u) => ['value' => $u->id, 'title' => $u->email])->values(),
         ]);
     }
@@ -173,7 +173,7 @@ class TargetController extends Controller
             'step' => ['required', 'integer', 'between:1,10'],
             'approver_type' => ['required', Rule::in(['role', 'user', 'creator_manager'])],
             'approver_role' => ['nullable', 'required_if:approver_type,role', 'string', Rule::exists('roles', 'name')],
-            'approver_user_id' => ['nullable', 'required_if:approver_type,user', 'integer', Rule::exists('users', 'id')->where('company_id', $request->user()->company_id)],
+            'approver_user_id' => ['nullable', 'required_if:approver_type,user', 'integer', Rule::exists('users', 'id')->where('company_id', \App\Modules\Sales\Support\SalesCompany::id())],
             'allow_creator' => ['boolean'],
             'is_active' => ['boolean'],
         ]);
@@ -196,7 +196,7 @@ class TargetController extends Controller
     {
         abort_unless($request->user()->can('settings.manage'), 403);
 
-        return Inertia::render('Modules/Sales/Targets/Alerts', ['settings' => \App\Modules\Sales\Services\PerformanceAlerts::settingsFor($request->user()->company_id)]);
+        return Inertia::render('Modules/Sales/Targets/Alerts', ['settings' => \App\Modules\Sales\Services\PerformanceAlerts::settingsFor(\App\Modules\Sales\Support\SalesCompany::id())]);
     }
 
     public function saveAlerts(Request $request): RedirectResponse
@@ -208,7 +208,7 @@ class TargetController extends Controller
             'unusual_movement.enabled' => ['boolean'], 'unusual_movement.threshold' => ['required', 'numeric', 'between:5,500'],
             'run_time' => ['required', 'regex:/^([01]\d|2[0-3]):[0-5]\d$/'],
         ]);
-        \Illuminate\Support\Facades\DB::table('sales_alert_settings')->updateOrInsert(['company_id' => $request->user()->company_id],
+        \Illuminate\Support\Facades\DB::table('sales_alert_settings')->updateOrInsert(['company_id' => \App\Modules\Sales\Support\SalesCompany::id()],
             ['settings' => json_encode($data), 'updated_at' => now(), 'created_at' => now()]);
 
         return back()->with('success', 'Alert settings saved.');

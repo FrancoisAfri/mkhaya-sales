@@ -31,7 +31,7 @@ class ReportController extends Controller
 
         return Inertia::render('Modules/Sales/Reports/Index', [
             'catalogue' => collect(StandardReports::all())->map(fn ($r, $k) => ['key' => $k, 'title' => $r['title']])->values(),
-            'saved' => DB::table('saved_reports')->where('company_id', $request->user()->company_id)
+            'saved' => DB::table('saved_reports')->where('company_id', \App\Modules\Sales\Support\SalesCompany::id())
                 ->where(fn ($q) => $q->where('user_id', $request->user()->id)->orWhere('shared', true))->orderBy('name')->get(['id', 'name', 'definition', 'shared']),
             'report' => $report,
             'result' => $this->run($report, $f, $request),
@@ -55,7 +55,7 @@ class ReportController extends Controller
             'definition.order' => ['nullable', 'string'], 'definition.filters' => ['nullable', 'array'],
         ]);
         DB::table('saved_reports')->insert([
-            'company_id' => $request->user()->company_id, 'user_id' => $request->user()->id, 'name' => $data['name'],
+            'company_id' => \App\Modules\Sales\Support\SalesCompany::id(), 'user_id' => $request->user()->id, 'name' => $data['name'],
             'definition' => json_encode($data['definition']), 'shared' => $data['shared'] ?? false, 'created_at' => now(), 'updated_at' => now(),
         ]);
 
@@ -82,7 +82,7 @@ class ReportController extends Controller
         [$headings, $rows] = $this->table($result);
 
         DB::table('report_exports')->insert([
-            'company_id' => $request->user()->company_id, 'user_id' => $request->user()->id, 'report' => $report['title'],
+            'company_id' => \App\Modules\Sales\Support\SalesCompany::id(), 'user_id' => $request->user()->id, 'report' => $report['title'],
             'format' => $format, 'parameters' => json_encode($request->query()), 'rows' => count($rows), 'created_at' => now(),
         ]);
         activity('sales')->causedBy($request->user())->withProperties(['report' => $report['title'], 'format' => $format])->log('report export');
@@ -91,7 +91,7 @@ class ReportController extends Controller
         if ($format === 'pdf') {
             return \Barryvdh\DomPDF\Facade\Pdf::loadView('sales.report-pdf', [
                 'title' => $report['title'], 'period' => "{$f['from']} to {$f['to']}", 'headings' => $headings, 'rows' => $rows,
-                'company' => DB::table('companies')->where('id', $request->user()->company_id)->value('name'),
+                'company' => DB::table('companies')->where('id', \App\Modules\Sales\Support\SalesCompany::id())->value('name'),
             ])->setPaper('a4', count($headings) > 5 ? 'landscape' : 'portrait')->download("{$name}.pdf");
         }
         if ($format === 'csv') {

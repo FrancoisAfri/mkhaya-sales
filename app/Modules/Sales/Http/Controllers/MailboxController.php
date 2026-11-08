@@ -101,7 +101,7 @@ class MailboxController extends Controller
             'subject_pattern' => ['nullable', 'string', 'max:190'],
             'filename_pattern' => ['nullable', 'string', 'max:190'],
             'extensions' => ['nullable', 'string', 'max:60'],
-            'layout_id' => ['nullable', 'integer', Rule::exists('report_layouts', 'id')->where('company_id', $request->user()->company_id)],
+            'layout_id' => ['nullable', 'integer', Rule::exists('report_layouts', 'id')->where('company_id', \App\Modules\Sales\Support\SalesCompany::id())],
             'run_time' => ['required', 'regex:/^([01]\d|2[0-3]):[0-5]\d$/'],
             'timezone' => ['required', 'timezone'],
             'run_days' => ['nullable', 'array'],

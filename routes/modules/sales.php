@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\Route;
  * Vector Sales Intelligence. Every route is named sales.* and checks its own SRS §4.2 permission.
  * Required inside the authenticated group in routes/web.php.
  */
-Route::prefix('sales')->name('sales.')->group(function () {
+Route::prefix('sales')->name('sales.')->middleware(\App\Modules\Sales\Http\Middleware\RequireSalesCompany::class)->group(function () {
     // Master data (phase 2)
     Route::get('master/{resource}', [MasterDataController::class, 'index'])->name('master.index');
     Route::get('master/{resource}/export', [MasterDataController::class, 'export'])->name('master.export');
