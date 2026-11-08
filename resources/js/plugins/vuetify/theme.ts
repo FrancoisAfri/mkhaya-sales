@@ -1,5 +1,5 @@
-export const staticPrimaryColor = '#7367F0'
-export const staticPrimaryDarkenColor = '#6259EE'
+export const staticPrimaryColor = '#6A0DAD'
+export const staticPrimaryDarkenColor = '#5A0B93'
 
 /**
  * The `primary-darken-1` shade for an arbitrary primary colour.

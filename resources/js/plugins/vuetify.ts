@@ -32,6 +32,23 @@ const iconify: IconSet = {
 export default createVuetify({
   components,
   directives,
+  // Mkhaya design system: flat surfaces with hairline borders, generous radius, sentence-case
+  // buttons. Explicit props on a component still win over these defaults.
+  defaults: {
+    VCard: { elevation: 0, rounded: 'xl' },
+    VBtn: { rounded: 'lg', elevation: 0, class: 'text-none' },
+    VChip: { rounded: 'lg' },
+    VTextField: { rounded: 'lg', color: 'primary' },
+    VSelect: { rounded: 'lg', color: 'primary' },
+    VAutocomplete: { rounded: 'lg', color: 'primary' },
+    VTextarea: { rounded: 'lg', color: 'primary' },
+    VFileInput: { rounded: 'lg', color: 'primary' },
+    VAlert: { rounded: 'lg' },
+    VDialog: { scrim: 'rgba(17,17,26,.35)' },
+    VDataTable: { hover: true },
+    VDataTableServer: { hover: true },
+    VTooltip: { location: 'top' },
+  },
   icons: {
     defaultSet: 'iconify',
     aliases,
@@ -44,29 +61,29 @@ export default createVuetify({
         dark: false,
         colors: {
           // Sneat primary purple
-          primary: '#7367F0',
+          primary: '#6A0DAD',
           'on-primary': '#FFFFFF',
 
-          secondary: '#808390',
+          secondary: '#6B6B7B',
           'on-secondary': '#FFFFFF',
 
-          success: '#28C76F',
+          success: '#2E7D32',
           'on-success': '#FFFFFF',
 
-          info: '#00CFE8',
+          info: '#00A8B5',
           'on-info': '#FFFFFF',
 
-          warning: '#FF9F43',
+          warning: '#E4A800',
           'on-warning': '#FFFFFF',
 
-          error: '#EA5455',
+          error: '#C62828',
           'on-error': '#FFFFFF',
 
-          background: '#F4F5FA',
-          'on-background': '#32475C',
+          background: '#F7F7FA',
+          'on-background': '#1F1F29',
 
           surface: '#FFFFFF',
-          'on-surface': '#32475C',
+          'on-surface': '#2B2B38',
 
           'grey-50': '#FAFAFA',
           'grey-100': '#F5F5F5',
@@ -162,14 +179,6 @@ export default createVuetify({
           'overlay-scrim-opacity': 0.6,
         },
       },
-    },
-  },
-  defaults: {
-    VCard: {
-      elevation: 0,
-    },
-    VBtn: {
-      elevation: 0,
     },
   },
 })

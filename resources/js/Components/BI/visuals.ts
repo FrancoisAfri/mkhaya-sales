@@ -174,9 +174,10 @@ export function buildOption(type: string, d: any): any {
     case 'pie': case 'donut': case 'rose': case 'funnel': {
       const data = d.categories.map((c: string, i: number) => ({ name: c, value: series[0]?.data[i] ?? 0 }))
       if (type === 'funnel') return base({ tooltip: { trigger: 'item', ...tip(fm(first)) }, legend: { show: false }, series: [{ type: 'funnel', sort: 'descending', gap: 2, label: { formatter: '{b}' }, data }] })
-      return base({ tooltip: { trigger: 'item', ...tip(fm(first)) }, legend: { type: 'scroll', bottom: 0, top: 'auto', left: 'center' },
-        series: [{ type: 'pie', radius: type === 'pie' ? ['0%', '68%'] : ['46%', '72%'], roseType: type === 'rose' ? 'radius' : undefined, center: ['50%', '45%'], itemStyle: { borderColor: '#fff', borderWidth: 2, borderRadius: 6 },
-          label: { show: d.categories.length <= 6, formatter: '{d}%', color: '#45455A' }, data }] })
+      const total = data.reduce((a: number, x: any) => a + (x.value ?? 0), 0) || 1
+      return base({ tooltip: { trigger: 'item', ...tip(fm(first)) }, legend: { type: 'scroll', orient: 'vertical', right: 0, top: 'middle', left: 'auto', formatter: (n: string) => { const x = data.find((y: any) => y.name === n); return `${n.length > 18 ? n.slice(0, 17) + '…' : n}  ${((x?.value ?? 0) / total * 100).toFixed(0)}%` } },
+        series: [{ type: 'pie', radius: type === 'pie' ? ['0%', '72%'] : ['52%', '78%'], roseType: type === 'rose' ? 'radius' : undefined, center: ['32%', '50%'], itemStyle: { borderColor: '#fff', borderWidth: 2, borderRadius: 6 },
+          label: { show: false }, data }] })
     }
     case 'treemap': case 'sunburst': {
       const data = (d.tree ?? []).map((p: any) => ({ name: p.name, value: p.value, children: p.children }))
