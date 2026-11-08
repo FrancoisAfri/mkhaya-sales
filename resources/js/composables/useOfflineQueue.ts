@@ -199,9 +199,32 @@ if (typeof window !== 'undefined') {
     refreshStorageEstimate()
   })
 
-  window.addEventListener('offline', () => {
+  // The browser's own offline flag is unreliable (network/VPN switches, DevTools throttling), so
+  // confirm with a real request to our server before showing the offline banner, and keep
+  // checking while offline so the banner clears as soon as the server answers.
+  let probeId: ReturnType<typeof setInterval> | null = null
+  const probe = async () => {
+    try {
+      const r = await fetch('/up', { method: 'HEAD', cache: 'no-store' })
+      if (r.ok || r.status < 500) {
+        if (!isOnline.value) {
+          isOnline.value = true
+          window.dispatchEvent(new CustomEvent('offline-sync-now'))
+        }
+        if (probeId) { clearInterval(probeId); probeId = null }
+        return
+      }
+    } catch { /* no answer: really offline */ }
     isOnline.value = false
-  })
+    if (!probeId) probeId = setInterval(probe, 10_000)
+  }
+
+  window.addEventListener('offline', () => { probe() })
+  // Started with the browser saying "offline"? Check before believing it.
+  if (!navigator.onLine) {
+    isOnline.value = true
+    probe()
+  }
 
   refreshCount()
   refreshStorageEstimate()
