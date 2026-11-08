@@ -13,7 +13,7 @@ class PlatformAdminTest extends SalesTestCase
             'status' => 1, 'is_platform_admin' => true, 'password_changed_at' => now()]);
         $admin->assignRole('administrator');
 
-        foreach (['/sales/targets/alerts', '/sales/dashboard', '/sales/imports', '/sales/master/products'] as $url) {
+        foreach (['/', '/sales/targets/alerts', '/sales/dashboard', '/sales/imports', '/sales/master/products'] as $url) {
             $this->actingAs($admin)->get($url)->assertRedirect('/platform/companies');
         }
     }

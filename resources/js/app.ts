@@ -44,51 +44,45 @@ function parseSentData(raw: any): Record<string, any> | null {
   return {}
 }
 
-axios.interceptors.request.use(async (config) => {
+// Send first, queue only on a real network failure. The browser's offline flag (navigator.onLine)
+// is unreliable — after a Wi-Fi or VPN switch Chrome can report "offline" while the server is fine —
+// so it is never used to decide. If the request reaches the server it is handled normally; only a
+// request that gets no answer at all is queued for replay.
+const realAdapter = axios.getAdapter(axios.defaults.adapter)
+
+axios.interceptors.request.use((config) => {
   const method = (config.method ?? '').toLowerCase()
+  if (!MUTATING.has(method) || config.headers?.['X-Offline-Sync']) return config
 
-  // Only intercept mutating requests that are offline and not our own replay calls
-  if (
-    !navigator.onLine &&
-    MUTATING.has(method) &&
-    !config.headers?.['X-Offline-Sync']
-  ) {
-    const url  = config.url ?? ''
-    const path = (() => { try { return new URL(url, location.origin).pathname } catch { return url } })()
+  const url  = config.url ?? ''
+  const path = (() => { try { return new URL(url, location.origin).pathname } catch { return url } })()
+  // Session-control routes fail naturally — never queue them.
+  if (SKIP_QUEUE_PATHS.some(s => path.includes(s))) return config
 
-    // Let session-control routes fail naturally — never queue them
-    if (SKIP_QUEUE_PATHS.some(s => path.includes(s))) return config
+  config.adapter = async (cfg: any) => {
+    try {
+      return await realAdapter(cfg)
+    } catch (err: any) {
+      // A response (4xx/5xx) means we are online: let it fail as usual.
+      if (err?.response || err?.code === 'ERR_CANCELED') throw err
 
-    const data   = parseSentData(config.data)
-    const userId: number | null = (router.page?.props as any)?.auth?.user?.id ?? null
-    const label  = deriveOfflineLabel(method, path)
-
-    if (data !== null) {
-      // Queue the request for later replay
+      const data   = parseSentData(config.data)
+      const userId: number | null = (router.page?.props as any)?.auth?.user?.id ?? null
+      const label  = deriveOfflineLabel(method, path)
+      window.dispatchEvent(new Event('offline'))
+      if (data === null) {
+        // FormData (file upload) cannot be stored for later.
+        window.dispatchEvent(new CustomEvent('offline-queued', { detail: { label: 'File upload — cannot be saved offline' } }))
+        throw err
+      }
       await enqueue(method, url, data, label, userId)
       window.dispatchEvent(new CustomEvent('offline-queued', { detail: { label } }))
-    } else {
-      // FormData — cannot be queued, notify user
-      window.dispatchEvent(new CustomEvent('offline-queued', {
-        detail: { label: 'File upload — cannot be saved offline' },
-      }))
-    }
 
-    // Return a mock Inertia "stay on current page" response.
-    // This makes Inertia fire its success lifecycle (onSuccess, form.reset,
-    // close dialogs) exactly as if the server had responded with a redirect
-    // back to the same page.
-    config.adapter = async () => ({
-      data:       { ...router.page },
-      status:     200,
-      statusText: 'OK',
-      headers: {
-        'x-inertia':    'true',
-        'content-type': 'application/json; charset=utf-8',
-      },
-      config,
-      request: null,
-    })
+      // A mock Inertia "stay on this page" response, so onSuccess fires, forms reset and dialogs
+      // close exactly as if the server had answered.
+      return { data: { ...router.page }, status: 200, statusText: 'OK',
+        headers: { 'x-inertia': 'true', 'content-type': 'application/json; charset=utf-8' }, config: cfg, request: null }
+    }
   }
 
   return config

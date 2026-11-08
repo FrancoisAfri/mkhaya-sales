@@ -27,7 +27,14 @@ class BIController extends Controller
     /** The landing page after login: the user's own default, else their role's dashboard (§5). */
     public function home(Request $request): Response|RedirectResponse
     {
-        if (! SalesCompany::id() || ! $request->user()->can('dashboards.view')) {
+        // A platform administrator works inside no company until they pick one: send them to the
+        // company list (where "View as company" opens that company's dashboard), not the old /home.
+        if (! SalesCompany::id()) {
+            return $request->user()->is_platform_admin || $request->user()->is_master_admin
+                ? redirect('/platform/companies')->with('info', 'Choose a company and use "View as company" to open its sales dashboard.')
+                : redirect()->route('dashboard.legacy');
+        }
+        if (! $request->user()->can('dashboards.view')) {
             return redirect()->route('dashboard.legacy');
         }
         $roles = $request->user()->getRoleNames()->all();
