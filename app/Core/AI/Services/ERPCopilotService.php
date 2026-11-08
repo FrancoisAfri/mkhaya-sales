@@ -150,7 +150,7 @@ class ERPCopilotService
         ]);
 
         // Meter this call against the company's monthly AI allowance.
-        $this->recordUsage($user, $sessionId, $message, $response);
+        $this->recordUsage($user, $sessionId, $message, $response, implode(',', array_diff((array) ($context['intent'] ?? []), ['general'])) ?: 'general');
 
         // If the tenant is now low on tokens, surface a gentle warning the UI shows.
         $quotaWarning = null;
@@ -177,15 +177,17 @@ class ERPCopilotService
     }
 
     /** Log this call's token usage against the user's company (drives the quota). */
-    private function recordUsage(User $user, string $sessionId, string $message, array $response): void
+    private function recordUsage(User $user, string $sessionId, string $message, array $response, string $category = 'general'): void
     {
         try {
             \App\Core\AI\Models\AiUsageLog::create([
                 'user_id'      => $user->id,
-                'company_id'   => $user->company_id ?? null,
+                'company_id'   => \App\Modules\Sales\Support\SalesCompany::id() ?? $user->company_id,
                 'session_id'   => $sessionId,
                 'feature'      => 'ai_copilot',
-                'model_used'   => $this->model,
+                'category'     => $category,
+                'provider'     => $response['metadata']['provider'] ?? null,
+                'model_used'   => $response['metadata']['model'] ?? $this->model,
                 'total_tokens' => (int) ($response['tokens'] ?? 0),
                 'prompt_tokens' => (int) ($response['metadata']['prompt_tokens'] ?? 0),
                 'completion_tokens' => (int) ($response['metadata']['completion_tokens'] ?? 0),

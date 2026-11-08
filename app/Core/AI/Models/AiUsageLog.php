@@ -11,6 +11,7 @@ class AiUsageLog extends Model
     protected $table = 'ai_usage_log';
 
     protected $fillable = [
+        'provider', 'category',
         'user_id', 'company_id', 'employee_id', 'session_id', 'feature', 'model_used',
         'prompt_tokens', 'completion_tokens', 'total_tokens',
         'input_summary', 'output_summary',

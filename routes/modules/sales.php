@@ -1,5 +1,6 @@
 <?php
 
+use App\Modules\Sales\Http\Controllers\AIUsageController;
 use App\Modules\Sales\Http\Controllers\BIController;
 use App\Modules\Sales\Http\Controllers\DashboardController;
 use App\Modules\Sales\Http\Controllers\ImportController;
@@ -65,6 +66,7 @@ Route::prefix('sales')->name('sales.')->middleware(\App\Modules\Sales\Http\Middl
     Route::get('dashboard/{view?}', [DashboardController::class, 'show'])->name('dashboard');
     Route::get('forecast', [DashboardController::class, 'forecast'])->name('forecast');
     Route::get('insights', [InsightsController::class, 'index'])->name('insights');
+    Route::get('ai-usage', [AIUsageController::class, 'index'])->name('ai-usage');
     Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
     Route::get('reports/export/{format}', [ReportController::class, 'export'])->middleware('throttle:30,1')->name('reports.export');
     Route::post('reports/saved', [ReportController::class, 'save'])->name('reports.save');

@@ -26,6 +26,7 @@ class SalesNavigationSeeder extends Seeder
             ['Reports', 'sales/reports'],
             ['Forecast', 'sales/forecast'],
             ['Insights', 'sales/insights'],
+            ['AI usage', 'sales/ai-usage'],
         ]],
         ['code' => 'sales_master_data', 'name' => 'Products & Customers', 'icon' => 'boxes', 'path' => '/sales/master/products', 'ribbons' => [
             ['Products', 'sales/master/products'],

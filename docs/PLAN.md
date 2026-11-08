@@ -51,8 +51,15 @@ product & customer master files, historical sales files, target examples, financ
 - **Release 2–3 done (2026-11-09):** target allocation, target imports, performance alerts + settings, formula / growth /
   composite targets, Insights page (unusual movements, product lifecycle, what-if, AI insights). Change-request workflow dropped by the owner.
 
+- **BI module (2026-11-08):** measure engine (`BIQueryService`), Apache ECharts library (~70 visuals in 13 groups), dashboard
+  builder (drag/resize, library, settings, share by role/organisation, saved views, PNG/print), 10 templates, role landing at `/`.
+  Load-tested: 10k products, 10k customers, 1M sales — pages 0.1–3 s, visuals 0.2–1.4 s.
+- **Redesign:** Mkhaya design layer (`resources/js/assets/styles/mkhaya.css` + Vuetify defaults), left sidebar, brand fonts — all screens.
+- **AI (§16):** assistant fully sales-focused; usage log records provider + category; `/sales/ai-usage` page with monthly limit.
+
 ## Still open
 - Real Vector inputs (§33): sample daily report → build its layout; mailbox details (Entra app or IMAP); masters; history; targets.
 - Operations (not code in this repo): production server, queue worker + scheduler, APP_EDITION for SaaS, backups with a tested
   restore, POPIA document, load test with a real year of data.
-- Charts use ApexCharts (already in the stack) instead of ECharts — swap only if ECharts is contractual.
+- BI items not yet built: maps (need customer coordinates — empty state explains), key influencers, network/chord graphs,
+  interactive decomposition tree, scheduled report e-mails, per-visual filters UI, older pages still use ApexCharts.
