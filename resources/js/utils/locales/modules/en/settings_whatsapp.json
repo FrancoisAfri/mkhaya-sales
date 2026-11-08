@@ -1,0 +1,54 @@
+{
+  "company_settings": {
+    "cards": {
+      "whatsapp": {
+        "title": "WhatsApp",
+        "subtitle": "The company's WhatsApp Business number, used by every module"
+      }
+    }
+  },
+  "whatsapp_settings": {
+    "overline": "Settings · Structure",
+    "title": "WhatsApp",
+    "subtitle": "Connect the company's WhatsApp Business number once. CRM, Finance, HR, Projects, Documents and Fleet all send from it.",
+    "source_central": "In use: this company account.",
+    "source_crm": "Not set here yet. Modules are using the WhatsApp settings saved in CRM until this page is filled in.",
+    "source_env": "Not set here yet. Modules are using the server's default WhatsApp settings.",
+    "source_none": "WhatsApp is not connected. Messages are not sent until a number is set up here.",
+    "used_by": "Used by:",
+    "account": "WhatsApp Business account",
+    "active": "Active",
+    "display_number": "WhatsApp number",
+    "display_number_hint": "The number people see messages from, for reference.",
+    "phone_number_id": "Phone number ID",
+    "phone_number_id_hint": "Meta → WhatsApp → API Setup. A long number, not the phone number itself.",
+    "business_account_id": "WhatsApp Business Account ID (optional)",
+    "business_account_id_hint": "Shown on the same API Setup page. Needed later for message templates.",
+    "access_token": "Access token",
+    "token_hint": "A permanent System User token from Meta Business Settings. Temporary tokens expire after 24 hours.",
+    "token_keep": "Saved and encrypted. Leave blank to keep it, or paste a new one to replace it.",
+    "country_code": "Default country code",
+    "country_code_hint": "Added to local numbers such as 082 000 0000.",
+    "api_version": "Graph API version",
+    "save": "Save",
+    "remove": "Remove",
+    "remove_confirm": "Remove the company's WhatsApp account? Modules fall back to CRM's WhatsApp settings, if any, and otherwise stop sending.",
+    "cancel": "Cancel",
+    "test_title": "Send a test",
+    "test_hint": "Sends Meta's “hello_world” template, which every new number has, so it works even if the recipient has never messaged you.",
+    "test_to": "Mobile number",
+    "send_test": "Send test message",
+    "last_test": "Last test {when}:",
+    "where_title": "Where to find these",
+    "where_1": "Open business.facebook.com and choose your business.",
+    "where_2": "Go to WhatsApp Manager, then API Setup, and copy the Phone number ID.",
+    "where_3": "In Business Settings → System Users, create a user with WhatsApp permissions and generate a permanent token.",
+    "where_4": "Paste both here, save, and send a test.",
+    "crm_fallback": "A company that set WhatsApp up in CRM keeps working: CRM's settings are used only until this page is complete."
+  },
+  "crm_settings_index": {
+    "whatsapp_central": "This company's WhatsApp number is set centrally, and CRM sends from it.",
+    "whatsapp_central_link": "Settings → Structure → WhatsApp",
+    "whatsapp_central_hint": "Tip: set WhatsApp once in Settings → Structure → WhatsApp so every module can use it; CRM's own settings are used only until then."
+  }
+}

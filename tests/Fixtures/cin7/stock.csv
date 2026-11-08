@@ -1,0 +1,5 @@
+ProductCode,ProductName,Location,Batch/SN,ExpiryDate,OnHand,Allocated,Available,UnitCost
+CIN-SHEET-2MM,Mild steel sheet 2mm,Main Warehouse,,,40,0,40,850
+CIN-CU-BAR,Copper busbar 30x5,Copper Store,HEAT-7781,,120.5,0,120.5,1240.50
+CIN-PAINT-GRY,Powder coat RAL7035,Consumables,PC-2210,2027/03/31,25,0,25,95
+CIN-PAINT-GRY,Powder coat RAL7035,Consumables,PC-OLD,,0,0,0,95

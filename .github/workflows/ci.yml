@@ -1,0 +1,88 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - develop
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    # Project Management is tested against a real PostgreSQL because its tenant isolation is
+    # row-level security, not an ORM scope. SQLite would build the schema and silently skip every
+    # RLS statement (the migrations guard on the driver), so the isolation tests would pass while
+    # proving nothing. Credentials mirror the <env> block in phpunit.xml.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: mkhaya_user
+          POSTGRES_PASSWORD: 'mkhaya2026!@'
+          POSTGRES_DB: mkhaya_hub_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U mkhaya_user -d mkhaya_hub_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, bcmath, pdo, pdo_sqlite, sqlite3, pdo_pgsql, pgsql, curl, dom, fileinfo, zip, exif
+          tools: composer:v2
+          coverage: none
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Install Node dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Build frontend assets
+        run: npm run build
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            vendor
+            ~/.composer/cache/files
+          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-composer-
+
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Prepare environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      - name: Run non-database tests
+        run: php artisan test tests/Unit/ExampleTest.php tests/Unit/Policies/ConditionEvaluatorTest.php tests/Feature/ExampleTest.php
+
+      # Scoped to Project Management rather than the whole suite on purpose. The repo carries
+      # known-red tests (see the three <exclude> entries in phpunit.xml), so a full-suite gate
+      # could not be turned on today without failing every PR for reasons unrelated to the change.
+      # This keeps the job around two minutes and gates the module where the financial code lives.
+      # Widen the paths as other modules are brought green.
+      - name: Run Project Management tests
+        run: php artisan test tests/Unit/ProjectManagement tests/Feature/ProjectManagement

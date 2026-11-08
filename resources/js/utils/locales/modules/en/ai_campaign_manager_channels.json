@@ -1,0 +1,10 @@
+{
+  "ai_campaign_manager": {
+    "channels": {
+      "subtitle": "Connect your ad networks (Google Ads, Meta, LinkedIn, TikTok and Microsoft Ads) to publish and measure campaigns",
+      "setup_linkedin": "A LinkedIn developer app with the Advertising API product approved (Development or Standard tier), plus Sign In with LinkedIn and Community Management for posting as your company Page. Put the client id and secret in the server's .env (LINKEDIN_ADS_CLIENT_ID, LINKEDIN_ADS_CLIENT_SECRET) and add this return address to the app's authorized redirect URLs:",
+      "setup_tiktok": "A TikTok for Business developer app with Marketing API access approved, with the Ad Account Management, Ads Management and Reporting permissions. Put the app id and secret in the server's .env (TIKTOK_ADS_APP_ID, TIKTOK_ADS_APP_SECRET) and set this return address as the app's advertiser redirect URL. TikTok ads need a video uploaded for TikTok in Creative Studio.",
+      "setup_microsoft_ads": "A Microsoft Advertising developer token (from the Developer Portal in Microsoft Advertising) and an app registration in Microsoft Entra ID (Azure) with a client secret. Put them in the server's .env (MICROSOFT_ADS_DEVELOPER_TOKEN, MICROSOFT_ADS_CLIENT_ID, MICROSOFT_ADS_CLIENT_SECRET) and add this return address as a Web redirect URI on the app registration:"
+    }
+  }
+}

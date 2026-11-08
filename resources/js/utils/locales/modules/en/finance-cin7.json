@@ -1,0 +1,50 @@
+{
+  "fin_cin7": {
+    "title": "Import from Cin7 Core",
+    "subtitle": "Bring products, opening stock, customers, suppliers and bills of materials across from Cin7 exports. Preview first: nothing is saved until you import.",
+    "banner": "Moving from Cin7 Core? Import its products, opening stock by warehouse and batch, customers, suppliers and BOMs.",
+    "banner_btn": "Import from Cin7 Core",
+    "back": "Back to imports",
+    "what": "What are you importing?",
+    "order_hint": "Import in this order: products, then stock, then customers and suppliers, then BOMs.",
+    "entity": {
+      "products": "Products",
+      "stock": "Opening stock",
+      "customers": "Customers",
+      "suppliers": "Suppliers",
+      "boms": "Bills of materials"
+    },
+    "entity_hint": {
+      "products": "Cin7 Products export: SKU, name, unit, average cost, reorder level, BOM flag.",
+      "stock": "Cin7 Stock on hand export: SKU, location, batch/serial, expiry, on hand, unit cost. Posts opening stock to the ledger.",
+      "customers": "Cin7 Customers export: name, account, terms, credit limit, discount, tax number.",
+      "suppliers": "Cin7 Suppliers export: name, terms, tax number. Also creates the procurement supplier.",
+      "boms": "Cin7 Bill of materials export: assembly SKU, component SKU, quantity, wastage. Created as drafts for an engineer to approve."
+    },
+    "file": "Cin7 export file (CSV or Excel)",
+    "map_title": "Cin7 locations → warehouses",
+    "map_hint": "Leave a location blank to create a warehouse with its name.",
+    "location": "Cin7 location",
+    "warehouse": "Warehouse",
+    "add_location": "Add location",
+    "date": "Opening stock date",
+    "account": "Opening balance account (optional)",
+    "preview": "Preview",
+    "import": "Import",
+    "again": "Import another file",
+    "result_preview": "Preview — nothing saved",
+    "result_done": "Imported",
+    "rows": "Rows",
+    "created": "Created",
+    "updated": "Updated",
+    "skipped": "Skipped",
+    "errors": "Errors",
+    "value": "Stock value",
+    "line": "Line",
+    "message": "Problem",
+    "columns": "Columns recognised",
+    "notes": "Notes",
+    "fix_first": "Fix the errors in the file, then preview again. An import is all or nothing.",
+    "reupload": "The file stays selected; Import sends it again."
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "manufacturing": {
+    "intel_workforce": {
+      "title": "Workforce optimisation",
+      "subtitle": "Labour the schedule needs against who is rostered, who is on approved leave, and who is qualified. Leave is read from HR; pay stays with payroll.",
+      "open_roster": "Open roster",
+      "needed": "Needed",
+      "rostered": "Rostered",
+      "on_leave": "On approved leave",
+      "pending_leave": "Pending leave",
+      "qualified": "Qualified and available",
+      "gap": "Shortfall",
+      "efficiency": "Labour efficiency (30 days)",
+      "efficiency_hint": "Planned over actual labour minutes on completed operations",
+      "recommendations": "Cover recommendations",
+      "by_centre": "By work centre and day",
+      "by_centre_hint": "Hours. Pending leave is shown as a risk and not deducted.",
+      "date": "Date",
+      "people": "{n} people",
+      "leave": {
+        "APPROVED": "on leave",
+        "PENDING": "leave pending"
+      },
+      "not_qualified": "not qualified",
+      "empty": "Nothing scheduled or rostered in this period.",
+      "qualifications": "Qualifications missing, expired or expiring within 30 days",
+      "person": "Person",
+      "requirement": "Requirement",
+      "expires": "Expires",
+      "qstatus": {
+        "MISSING": "Missing",
+        "EXPIRED": "Expired",
+        "EXPIRING": "Expiring"
+      },
+      "no_training": "No qualification problems at rostered centres.",
+      "performance": "Actual production performance (30 days)",
+      "performance_hint": "Planned labour of the completed operations against the time logged doing them, per work centre. A measure of the work, not of any person.",
+      "operations": "Operations",
+      "planned_h": "Planned (h)",
+      "logged_h": "Logged (h)"
+    }
+  }
+}

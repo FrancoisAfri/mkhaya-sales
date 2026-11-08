@@ -1,0 +1,69 @@
+{
+  "manufacturing": {
+    "intel_cost": {
+      "title": "Cost intelligence",
+      "subtitle": "Where cost is rising, where factories differ, which suppliers raised prices, and which margins are at risk.",
+      "never_added": "These are eight different measures. They are never added together: an estimate is not a loss, and a recommended saving is not an achieved one.",
+      "measure": {
+        "actual_posted": "Actual posted cost",
+        "approved_standard": "Approved standard cost",
+        "provisional": "Provisional cost",
+        "forecast": "Forecast cost",
+        "risk_exposure": "Estimated risk exposure",
+        "recommended_savings": "Recommended savings",
+        "verified_loss": "Verified loss",
+        "realised_saving": "Realised saving"
+      },
+      "kind": {
+        "ACTUAL": "Actual",
+        "STANDARD": "Standard",
+        "PROVISIONAL": "Provisional",
+        "FORECAST": "Forecast",
+        "ESTIMATE": "Estimate",
+        "RECOMMENDATION": "Recommended"
+      },
+      "tab": {
+        "trends": "Trends",
+        "variances": "Variances",
+        "suppliers": "Supplier prices",
+        "margins": "Margins",
+        "stock": "Expiring stock",
+        "recs": "Recommendations",
+        "setup": "Setup and changeover",
+        "energy": "Energy-intensive"
+      },
+      "rising": "Products whose unit cost is rising",
+      "rising_hint": "Actual cost per unit of completed orders by month; rising across at least three months and more than 5%.",
+      "change": "Change",
+      "monthly": "By month",
+      "none": "Nothing found.",
+      "factory_diff": "Same product, different factories (last 90 days)",
+      "spread": "Spread",
+      "unit_costs": "Unit cost by factory",
+      "variance_kind": "Variance",
+      "amount": "Amount",
+      "orders": "Orders",
+      "largest": "Largest",
+      "latest": "Latest price",
+      "year_avg": "Year average",
+      "last_order": "Last order",
+      "margin_now": "Margin, last 90 days",
+      "margin_before": "The 90 days before",
+      "at_risk": "May become unprofitable",
+      "provisional_cost": "Cost not final",
+      "lot": "Lot",
+      "qty": "Quantity",
+      "value": "Value",
+      "no_recs": "No open cost recommendations. They appear after the daily run.",
+      "setup_hint": "Setup and changeover minutes of completed operations over 90 days, from the changeover matrix where it has a rule, else the routing setup, priced at the centre rates. 15% or more of the orders' cost is excessive.",
+      "setup_minutes": "Setup minutes",
+      "per_unit": "Per unit",
+      "share": "Share of cost",
+      "excessive": "Excessive",
+      "energy_hint": "Electricity per finished unit by product over 90 days, against the median product; 1.5× or more is energy-intensive.",
+      "vs_median": "Against median",
+      "basis": "Basis",
+      "no_energy": "No product has metered electricity in the period."
+    }
+  }
+}

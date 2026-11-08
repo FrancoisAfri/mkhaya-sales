@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "Mkhaya SARS Connect",
+  "version": "1.0.0",
+  "description": "Send the eFiling pages you choose to Mkhaya SARS Connect. You sign in to eFiling yourself; Mkhaya never sees your password or PIN.",
+  "permissions": ["storage"],
+  "host_permissions": __HOSTS__,
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [
+    { "matches": __HUB_MATCHES__, "js": ["hub.js"], "run_at": "document_start" },
+    { "matches": __EFILING_MATCHES__, "js": ["efiling.js"], "run_at": "document_idle" }
+  ]
+}

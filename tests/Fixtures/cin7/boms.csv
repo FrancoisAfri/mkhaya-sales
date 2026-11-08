@@ -1,0 +1,4 @@
+ProductSKU,ProductName,ComponentSKU,ComponentName,Quantity,WastagePercent
+CIN-ENC-600,Enclosure 600x400x200,CIN-SHEET-2MM,Mild steel sheet 2mm,1.5,3
+CIN-ENC-600,Enclosure 600x400x200,CIN-CU-BAR,Copper busbar 30x5,2.2,1
+CIN-ENC-600,Enclosure 600x400x200,CIN-PAINT-GRY,Powder coat RAL7035,0.4,

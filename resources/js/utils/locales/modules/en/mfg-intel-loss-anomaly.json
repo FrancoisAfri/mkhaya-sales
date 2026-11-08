@@ -1,0 +1,32 @@
+{
+  "manufacturing": {
+    "loss": {
+      "category": {
+        "AN_MATERIAL_PATTERN": "Unusual material use",
+        "AN_REPEATED_ADJUSTMENTS": "Repeated unexplained adjustments",
+        "AN_OUTPUT_VS_MATERIAL": "Output inconsistent with material",
+        "AN_ABNORMAL_SCRAP": "Abnormal scrap pattern",
+        "AN_REWORK_FREQUENCY": "Unusual rework frequency",
+        "AN_WEIGHING_MISMATCH": "Scale and record disagree",
+        "AN_DOWNTIME_PATTERN": "Repeated downtime pattern",
+        "AN_SUPPLIER_QUALITY_CHANGE": "Supplier quality change",
+        "AN_ENERGY_CHANGE": "Unexpected energy change",
+        "AN_REPEATED_EXCEPTIONS": "Repeated exceptions on a process",
+        "AN_REPETITIVE_TRANSACTIONS": "Repetitive transactions to check",
+        "AN_EXPECTED_OUTPUT": "Output short of expected"
+      },
+      "anomaly_title": "What was detected",
+      "detection_method": "Method",
+      "comparison_period": "Compared with",
+      "data_quality": "Data quality",
+      "quality": {
+        "COMPLETE": "Complete",
+        "PARTIAL": "Partial: a short history",
+        "INSUFFICIENT": "Insufficient"
+      },
+      "record_actor": "recorded by the record's actor",
+      "anomaly_not_loss": "An anomaly is a pattern to investigate, not a verified loss and not a finding against anybody. It is verified and approved like every other loss finding.",
+      "anomaly_rules_hint": "Rules starting with a pattern (unusual, repeated, change) compare the recent window with the comparison period before it, three times as long."
+    }
+  }
+}

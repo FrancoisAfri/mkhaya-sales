@@ -1,0 +1,46 @@
+{
+  "manufacturing": {
+    "assistant": {
+      "scope": "Scope",
+      "exclusions": "Not included",
+      "action": {
+        "MAINTENANCE_REQUEST": "Draft maintenance request",
+        "CORRECTIVE_PLAN": "Draft corrective plan",
+        "SUPPLIER_REVIEW": "Request supplier review",
+        "COMPLIANCE_REVIEW": "Request compliance review",
+        "SCHEDULE_PROPOSAL": "Propose schedule",
+        "SCENARIO": "Propose scenario",
+        "REPORT": "Draft management report"
+      },
+      "col": {
+        "since": "Since",
+        "minutes": "Minutes",
+        "machine": "Machine",
+        "finding": "Finding",
+        "confidence": "Confidence",
+        "material_expected": "Material expected",
+        "if_late": "If late",
+        "start_slips_days": "Start slips (days)",
+        "alternative": "Approved alternative",
+        "orders_short": "Orders short",
+        "rank": "Rank",
+        "customer_commitment": "Customer order",
+        "hour": "Hour",
+        "operations_running": "Operations running",
+        "action": "Action",
+        "days_overdue": "Days overdue",
+        "measure": "Measure",
+        "item": "Item",
+        "factory": "Factory",
+        "source": "Source",
+        "published": "Published",
+        "scope": "Scope",
+        "kwh": "kWh",
+        "units": "Units",
+        "kwh_per_unit": "kWh per unit",
+        "previous": "Previous",
+        "current": "Current"
+      }
+    }
+  }
+}

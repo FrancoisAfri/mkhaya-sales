@@ -1,0 +1,25 @@
+{
+  "procurement_policies": {
+    "po_control": {
+      "title": "Purchase orders require an approved requisition",
+      "hint": "When on, a purchase order is raised only from an approved, awarded requisition. A direct order needs the manual-order override and a written reason, kept on the order. Nobody approves an order they raised or asked for.",
+      "on": "Required",
+      "off": "Not required"
+    }
+  },
+  "purchase_requests_index": {
+    "requested_by": "Requested by",
+    "department": "Department",
+    "table_items": "Items",
+    "purchase_orders": "Purchase orders",
+    "approved_by": "Approved by {name}",
+    "export_csv": "Export CSV"
+  },
+  "supplier_purchase_orders": {
+    "requisition_required": {
+      "blocked": "Your company requires purchase orders to come from an approved requisition. Raise a purchase request instead.",
+      "override": "Your company requires an approved requisition. You may raise this order directly with the manual-order override; say why.",
+      "reason": "Why this order cannot go through a requisition"
+    }
+  }
+}

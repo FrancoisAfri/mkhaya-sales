@@ -1,0 +1,3 @@
+Name,Status,Currency,PaymentTerm,CreditLimit,Discount,Email,Phone,TaxNumber
+Eskom Distribution,Active,ZAR,30 days,500000,5,ap@eskom-demo.test,011 000 0000,4000000001
+Walk-in Electrical,Active,ZAR,COD,,,shop@walkin-demo.test,,

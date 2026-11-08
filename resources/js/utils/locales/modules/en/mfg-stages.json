@@ -1,0 +1,39 @@
+{
+  "manufacturing": {
+    "bom": {
+      "stage": "Consumed at stage",
+      "stage_hint": "The routing stage that uses this material; it is issued there on the shop floor. Leave empty to issue at job level.",
+      "stage_no_routing": "The product has no routing yet, so the material is issued at job level.",
+      "job_level": "Job level"
+    },
+    "orders": {
+      "stage": "Stage",
+      "stage_n": "Stage {n} · {name}",
+      "stage_yield": "Yield and scrap by stage",
+      "stage_yield_hint": "What went into each stage, what came out good, and what was lost there. Scrap value is the material put into a part up to that stage.",
+      "stage_input": "In",
+      "stage_material": "Material issued",
+      "scrap_value": "Scrap value (material)"
+    },
+    "floor": {
+      "this_stage": "This stage",
+      "return_title": "Return {item} to stock",
+      "return_hint": "Up to {n} is with this order."
+    },
+    "reports": {
+      "table": {
+        "scrap_by_stage": "Yield and scrap by stage"
+      },
+      "col": {
+        "stage": "Stage",
+        "orders": "Orders",
+        "good": "Good",
+        "rejected": "Rejected",
+        "scrapped": "Scrapped",
+        "reworked": "Reworked",
+        "yield_percent": "Yield %",
+        "scrap_material_value": "Scrap value (material)"
+      }
+    }
+  }
+}

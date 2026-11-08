@@ -1,0 +1,108 @@
+name: Deploy Laravel App
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: deploy-main
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout latest code
+        uses: actions/checkout@v4
+
+      # ── Build front-end assets on the runner (fast, no cPanel timeout) ──────
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Install Node dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Build assets
+        run: npm run build
+
+      # ── Ship the compiled assets to the server ─────────────────────────────
+      # Replaces the slow on-server `npm install && npm run build` that was
+      # exceeding the SSH action's command_timeout.
+      - name: Upload public/build to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: 22
+          source: "public/build"
+          target: "/home/mkhayahubafrixce/mkhaya-hub/public"
+          overwrite: true
+          strip_components: 1
+
+      # ── Server-side: pull code, composer, migrate, cache (no npm) ──────────
+      - name: Deploy to cPanel server via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: 22
+          command_timeout: 20m
+          script: |
+            cd /home/mkhayahubafrixce/mkhaya-hub || exit 1
+
+            PHP=/opt/cpanel/ea-php83/root/usr/bin/php
+
+            # ── Pull latest code (FATAL if it fails — otherwise nothing ships) ─
+            # If a GH_DEPLOY_TOKEN secret is set we authenticate with it (fixes
+            # "could not read Username for https://github.com"); otherwise we use
+            # the server's existing 'origin' remote/credentials.
+            if [ -n "${{ secrets.GH_DEPLOY_TOKEN }}" ]; then
+              GIT_REMOTE="https://x-access-token:${{ secrets.GH_DEPLOY_TOKEN }}@github.com/FrancoisAfri/mkhaya-hub.git"
+            else
+              GIT_REMOTE="origin"
+            fi
+            if ! git pull "$GIT_REMOTE" main; then
+              echo "::error::git pull failed — code was not updated on the server. Add a GH_DEPLOY_TOKEN secret or fix the server's git credentials."
+              exit 1
+            fi
+
+            # ── Composer (auto-detect; skip cleanly if unavailable) ───────────
+            if command -v composer >/dev/null 2>&1; then
+              COMPOSER_BIN="composer"
+            elif [ -f composer.phar ]; then
+              COMPOSER_BIN="$PHP composer.phar"
+            else
+              COMPOSER_BIN=""
+            fi
+            if [ -n "$COMPOSER_BIN" ]; then
+              $COMPOSER_BIN install --no-dev --optimize-autoloader --no-interaction
+            else
+              echo "::warning::composer not found on server — skipping composer install"
+            fi
+
+            # ── Reconcile the migrations table, then migrate ──────────────────
+            # migrate:reconcile marks already-existing create-table migrations as
+            # run (no-op on a healthy DB), so migrate can proceed to genuinely
+            # new tables instead of dying on "relation already exists".
+            $PHP artisan migrate:reconcile || echo "::warning::migrate:reconcile step had issues"
+            if ! $PHP artisan migrate --force; then
+              echo "::warning::migrate reported errors"
+            fi
+
+            # ── Refresh caches ────────────────────────────────────────────────
+            $PHP artisan config:clear
+            $PHP artisan cache:clear
+            $PHP artisan route:clear
+            $PHP artisan view:clear
+
+            $PHP artisan config:cache
+            # The route table outgrew the default 128M; caching it ran out of memory.
+            $PHP -d memory_limit=512M artisan route:cache
+            $PHP artisan view:cache

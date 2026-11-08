@@ -1,0 +1,5 @@
+ProductCode,Name,Category,Type,CostingMethod,DefaultUnitOfMeasure,AverageCost,MinimumBeforeReorder,BillOfMaterial,Status
+CIN-SHEET-2MM,Mild steel sheet 2mm,Raw,Stock,FIFO,Item,850.00,20,No,Active
+CIN-CU-BAR,Copper busbar 30x5,Copper,Stock,FIFO,kg,"1,240.50",50,No,Active
+CIN-PAINT-GRY,Powder coat RAL7035,Consumables,Stock,FIFO,kg,95,10,No,Active
+CIN-ENC-600,Enclosure 600x400x200,Finished,Stock,FIFO,Item,0,,Yes,Active

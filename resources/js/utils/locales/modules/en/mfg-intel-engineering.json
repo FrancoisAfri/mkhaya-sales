@@ -1,0 +1,169 @@
+{
+  "manufacturing": {
+    "intel_engineering": {
+      "title": "Engineering intelligence",
+      "subtitle": "Engineering changes with their impact, warranty claims, and what the engineering agents found in BOMs, routings and quality records.",
+      "cancel": "Cancel",
+      "save": "Save",
+      "item": "Product",
+      "component": "Component",
+      "status": "Status",
+      "note": "Note",
+      "history": "History",
+      "kpi": {
+        "open_changes": "Open changes",
+        "awaiting": "Awaiting a decision",
+        "open_claims": "Open warranty claims",
+        "claim_cost": "Claim cost, 90 days"
+      },
+      "tabs": {
+        "changes": "Engineering changes",
+        "warranty": "Warranty claims",
+        "insights": "Recommendations",
+        "capability": "Capability"
+      },
+      "type": {
+        "BOM": "BOM",
+        "ROUTING": "Routing",
+        "ITEM": "Product",
+        "SPECIFICATION": "Specification",
+        "DOCUMENT": "Document"
+      },
+      "source": {
+        "MANUAL": "Raised by hand",
+        "AI_RECOMMENDATION": "From a recommendation",
+        "WARRANTY": "From warranty",
+        "NONCONFORMANCE": "From quality"
+      },
+      "change_status": {
+        "DRAFT": "Draft",
+        "SUBMITTED": "Submitted",
+        "APPROVED": "Approved",
+        "REJECTED": "Rejected",
+        "IMPLEMENTED": "Implemented",
+        "CANCELLED": "Cancelled"
+      },
+      "claim_status": {
+        "OPEN": "Open",
+        "ASSESSED": "Assessed",
+        "ACCEPTED": "Accepted",
+        "REJECTED": "Rejected",
+        "CLOSED": "Closed"
+      },
+      "action": {
+        "ADD": "Add",
+        "REMOVE": "Remove",
+        "CHANGE_QTY": "Change quantity",
+        "SUBSTITUTE": "Substitute",
+        "CHANGE": "Change"
+      },
+      "event": {
+        "DRAFTED": "Drafted",
+        "EDITED": "Edited",
+        "IMPACT_ASSESSED": "Impact assessed",
+        "SUBMITTED": "Submitted",
+        "APPROVED": "Approved",
+        "REJECTED": "Rejected",
+        "IMPLEMENTED": "Implemented",
+        "CANCELLED": "Cancelled"
+      },
+      "agents": {
+        "eng_recurring_failure": "Recurring failures",
+        "eng_bom_review": "BOM review",
+        "eng_cycle_time": "Cycle time",
+        "eng_pending_change": "Waiting changes",
+        "eng_waste_hotspots": "Waste hotspots"
+      },
+      "impact": {
+        "open_orders": "Open production orders",
+        "stock": "Existing stock",
+        "supplier_commitments": "Supplier commitments",
+        "quality_documentation": "Quality documentation",
+        "certification": "Product certification",
+        "customer_orders": "Customer orders",
+        "costing": "Product costing",
+        "traceability": "Traceability and recall",
+        "cost_delta": "Change per unit: {delta} (current standard cost {current})",
+        "trace": "{lots} lots and {units} serial units recorded; {field} units in the field.",
+        "none_found": "Nothing affected was found."
+      },
+      "changes": {
+        "new": "New engineering change",
+        "change": "Change",
+        "type": "Kind",
+        "impact": "Impact",
+        "impact_short": "{orders} orders · {customers} customer orders · {docs} documents",
+        "not_assessed": "Not assessed",
+        "empty": "No engineering changes.",
+        "bom": "BOM revision",
+        "bom_hint": "Leave empty to use the current approved revision",
+        "routing": "Routing",
+        "title_label": "Title",
+        "reason": "Reason for the change",
+        "draft": "Draft change",
+        "proposed": "Proposed changes",
+        "from_qty": "From",
+        "to_qty": "To",
+        "description": "What changes",
+        "add_line": "Add a change",
+        "control_hint": "Nothing here changes a BOM or routing. Implementing an approved change drafts a new revision, which then goes through its own approval.",
+        "from_record": "From the recommendation: {title}",
+        "assessed_at": "Assessed {at}",
+        "reassess": "Reassess",
+        "new_revision": "This change needs a new revision: released orders keep the revision they were made with.",
+        "decision": "Decision",
+        "submit": "Submit for approval",
+        "approve": "Approve",
+        "reject": "Reject",
+        "own": "You submitted this change; somebody else decides it.",
+        "needs": "Deciding needs {p}.",
+        "reference": "Where it was changed",
+        "draft_revision": "Draft the new revision",
+        "implement": "Record as implemented",
+        "cancel": "Cancel change",
+        "implemented": "Implemented as",
+        "open_bom": "Open BOM revision {r}"
+      },
+      "warranty": {
+        "new": "New warranty claim",
+        "claim": "Claim",
+        "failure_mode": "Failure mode",
+        "failure_mode_hint": "Use the same words for the same failure so patterns show",
+        "cost": "Claim cost",
+        "root_cause": "Root cause",
+        "repair_order": "Repair order",
+        "assess": "Assess",
+        "raise_eco": "Raise change",
+        "raise_repair": "Raise repair",
+        "close": "Close",
+        "empty": "No warranty claims.",
+        "serial": "Serial number",
+        "lot": "Lot number",
+        "customer": "Customer",
+        "claim_date": "Claim date",
+        "failure_date": "Failure date",
+        "defect_code": "Defect code",
+        "description": "What happened",
+        "decision": "Decision"
+      },
+      "insights": {
+        "hint": "Open recommendations from the engineering agents. Approve, carry out or dismiss them in the intelligence feed; carrying one out only drafts a change.",
+        "feed": "Open the feed",
+        "empty": "No open engineering recommendations."
+      },
+      "capability": {
+        "hint": "Can each work centre hold each characteristic inside its specification? Cpk below 1.00 is not capable, 1.00–1.33 marginal. Fewer than 20 measurements give no figure.",
+        "centre": "Work centre",
+        "characteristic": "Characteristic",
+        "spec": "Specification",
+        "empty": "No measured characteristics with limits yet.",
+        "verdict": {
+          "CAPABLE": "Capable",
+          "MARGINAL": "Marginal",
+          "NOT_CAPABLE": "Not capable",
+          "INSUFFICIENT": "Too few measurements"
+        }
+      }
+    }
+  }
+}
