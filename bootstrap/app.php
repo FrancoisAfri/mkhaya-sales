@@ -54,6 +54,7 @@ return Application::configure(basePath: dirname(__DIR__))
         \App\Modules\Tenancy\Console\TrialReminders::class,
         \App\Modules\Tenancy\Console\BackfillTenantReferenceCommand::class,
         \App\Modules\Sales\Console\RunMailboxes::class,
+        \App\Modules\Sales\Console\SalesDemo::class,
     ])
     ->withSchedule(function (Schedule $schedule) {
         // Sales Intelligence: each mailbox runs at its own configured time (default 03:30 SAST).

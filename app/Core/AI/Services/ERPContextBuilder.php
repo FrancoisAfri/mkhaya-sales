@@ -56,6 +56,7 @@ class ERPContextBuilder
     {
         return [
             'people' => 'user_management',
+            'sales' => 'sales_overview',
         ];
     }
 
@@ -63,7 +64,8 @@ class ERPContextBuilder
     {
         $q = strtolower($question);
         $map = [
-            'people' => ['user', 'people', 'staff', 'team', 'role', 'manager', 'reports to', 'department', 'division', 'who'],
+            'people' => ['user', 'people', 'staff', 'role', 'reports to', 'department', 'division'],
+            'sales' => ['sale', 'revenue', 'customer', 'product', 'target', 'top', 'declin', 'grow', 'month', 'year', 'forecast', 'brand', 'category', 'region', 'perform', 'compare', 'best', 'worst'],
         ];
 
         $intents = [];
@@ -96,6 +98,7 @@ class ERPContextBuilder
             try {
                 $data[$intent] = match ($intent) {
                     'people'  => $this->getPeopleData(),
+                    'sales'   => $this->getSalesData(),
                     'general' => $this->getGeneralOverview(),
                     default   => [],
                 };
@@ -138,6 +141,39 @@ class ERPContextBuilder
                     'pos.name as position',
                     DB::raw("trim(coalesce(m.first_name, '') || ' ' || coalesce(m.surname, '')) as reports_to"),
                 ])->toArray(),
+        ];
+    }
+
+    /**
+     * Sales figures from the same services as the dashboards — tenant- and scope-restricted for this
+     * user, aggregated (no row-level personal data), never free SQL (SRS AI-001 §16.2–16.3).
+     */
+    private function getSalesData(): array
+    {
+        $user = Auth::user();
+        $analytics = app(\App\Modules\Sales\Services\SalesAnalytics::class);
+        $last = $analytics->lastSaleDate();
+        if (! $last || ! $user?->can('sales.view')) {
+            return ['note' => $last ? 'User may not view sales.' : 'No sales data has been loaded yet.'];
+        }
+        $to = \Carbon\CarbonImmutable::parse($last);
+        $month = ['from' => $to->startOfMonth()->toDateString(), 'to' => $to->toDateString()];
+        $lastMonth = ['from' => $to->subMonthNoOverflow()->startOfMonth()->toDateString(), 'to' => $to->subMonthNoOverflow()->endOfMonth()->toDateString()];
+        $slim = fn (array $rows, string $dim) => array_map(fn ($r) => array_intersect_key($r, array_flip([$dim, 'value', 'previous', 'growth', 'share'])), $rows);
+
+        return [
+            'data_up_to' => $last,
+            'currency' => 'ZAR',
+            'this_month_kpis' => $analytics->kpis($month, $user),
+            'top_customers_this_month' => $slim($analytics->grouped($month, $user, ['customer'], 'net_value', 'previous_year', 5)['rows'], 'customer'),
+            'top_products_this_month' => $slim($analytics->grouped($month, $user, ['product'], 'net_value', 'previous_year', 5)['rows'], 'product'),
+            'top_products_last_month' => $slim($analytics->grouped($lastMonth, $user, ['product'], 'net_value', 'previous_year', 5)['rows'], 'product'),
+            'declining_customers_vs_last_year' => $slim($analytics->grouped($month, $user, ['customer'], 'net_value', 'previous_year', 5, 'decline')['rows'], 'customer'),
+            'fastest_growing_products' => $slim($analytics->grouped($month, $user, ['product'], 'net_value', 'previous_year', 5, 'growth')['rows'], 'product'),
+            'categories_this_month' => $slim($analytics->grouped($month, $user, ['category'], 'net_value', 'previous_year', 8)['rows'], 'category'),
+            'targets' => array_map(fn ($t) => ['name' => $t['name'], 'period' => $t['start_date'] . ' to ' . $t['end_date']] + array_intersect_key($t['performance'], array_flip(['target', 'actual', 'achievement', 'remaining', 'forecast', 'status'])),
+                app(\App\Modules\Sales\Services\TargetService::class)->performanceList($month, $user)),
+            'note' => 'Values are net sales in rand. Forecasts are estimates. growth is % vs the same period last year.',
         ];
     }
 

@@ -1,10 +1,13 @@
 <?php
 
+use App\Modules\Sales\Http\Controllers\DashboardController;
 use App\Modules\Sales\Http\Controllers\ImportController;
 use App\Modules\Sales\Http\Controllers\LayoutController;
 use App\Modules\Sales\Http\Controllers\MailboxController;
 use App\Modules\Sales\Http\Controllers\MasterDataController;
+use App\Modules\Sales\Http\Controllers\ReportController;
 use App\Modules\Sales\Http\Controllers\SalesRecordController;
+use App\Modules\Sales\Http\Controllers\TargetController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -54,4 +57,27 @@ Route::prefix('sales')->name('sales.')->group(function () {
     Route::put('mailboxes/{mailbox}', [MailboxController::class, 'update'])->name('mailboxes.update');
     Route::post('mailboxes/{mailbox}/test', [MailboxController::class, 'test'])->middleware('throttle:10,1')->name('mailboxes.test');
     Route::post('mailboxes/{mailbox}/run', [MailboxController::class, 'run'])->middleware('throttle:10,1')->name('mailboxes.run');
+
+    // Dashboards, forecast and reports (phase 6)
+    Route::get('dashboard/{view?}', [DashboardController::class, 'show'])->name('dashboard');
+    Route::get('forecast', [DashboardController::class, 'forecast'])->name('forecast');
+    Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
+    Route::get('reports/export/{format}', [ReportController::class, 'export'])->middleware('throttle:30,1')->name('reports.export');
+    Route::post('reports/saved', [ReportController::class, 'save'])->name('reports.save');
+    Route::delete('reports/saved/{id}', [ReportController::class, 'destroy'])->whereNumber('id')->name('reports.saved.destroy');
+
+    // Targets and the approvals matrix (phase 7)
+    Route::get('targets', [TargetController::class, 'index'])->name('targets.index');
+    Route::get('targets/approvals', [TargetController::class, 'approvals'])->name('targets.approvals');
+    Route::get('targets/matrix', [TargetController::class, 'matrix'])->name('targets.matrix');
+    Route::post('targets/matrix', [TargetController::class, 'saveRule'])->name('targets.matrix.store');
+    Route::put('targets/matrix/{id}', [TargetController::class, 'saveRule'])->whereNumber('id')->name('targets.matrix.update');
+    Route::delete('targets/matrix/{id}', [TargetController::class, 'deleteRule'])->whereNumber('id')->name('targets.matrix.destroy');
+    Route::post('targets', [TargetController::class, 'store'])->name('targets.store');
+    Route::get('targets/{target}', [TargetController::class, 'show'])->name('targets.show');
+    Route::put('targets/{target}', [TargetController::class, 'update'])->name('targets.update');
+    Route::post('targets/{target}/submit', [TargetController::class, 'submit'])->name('targets.submit');
+    Route::post('targets/{target}/decide', [TargetController::class, 'decide'])->name('targets.decide');
+    Route::post('targets/{target}/revise', [TargetController::class, 'revise'])->name('targets.revise');
+    Route::post('targets/{target}/archive', [TargetController::class, 'archive'])->name('targets.archive');
 });

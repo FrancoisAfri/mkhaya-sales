@@ -37,3 +37,19 @@ product & customer master files, historical sales files, target examples, financ
   `user_data_scopes` (RLS), contract fields on `subscriptions`, `sales:provision-vector`, platform tenancy
   commands/schedule restored, `tests/Feature/Sales/FoundationTest` (roles, contract, RLS, cross-tenant web access).
   Sales menu is added per phase as its screens arrive.
+- **Phase 2 done:** master data (products, customers, classifications, aliases), registry-driven screen, Sales Intelligence menu.
+- **Phases 3–4 done:** File layouts (any report format, no code), Import Centre (preview → confirm → commit), three ingestion modes,
+  no double counting, sales records, corrections with second-person approval, reconciliation.
+- **Phase 5 done:** mailbox setup (Microsoft 365 Graph / IMAP), configurable run time per mailbox, retries, missing-report alert,
+  health dashboard, Run now; manual upload in the Import Centre as fallback.
+- **Phases 6–7 done:** executive/customer/product/target dashboards, 21 standard reports + report builder + saved reports,
+  Excel/CSV/PDF export, statistical forecast, targets with approvals matrix (setup), revisions with history, target performance;
+  AI assistant answers sales questions from scoped, aggregated figures.
+- Demo: `php artisan sales:demo --password=…` creates "Demo Foods (Pty) Ltd" (26 months of sales, targets, matrix).
+- Queue workers must listen on `default,imports`; the scheduler (`schedule:work` / cron) runs `sales:mailboxes` every minute.
+
+## Still open
+- Real Vector inputs (§33): sample daily report → build its layout; mailbox details (Entra app or IMAP).
+- Release 2/3 items not built: target allocation (parent→child), formula/composite targets, target imports, anomaly detection,
+  what-if, change-request (R1,250/h) workflow screens, backup/restore runbook, POPIA document, load testing.
+- Charts use ApexCharts (already in the stack) instead of ECharts — swap if ECharts is contractual.

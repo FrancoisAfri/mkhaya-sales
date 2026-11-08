@@ -381,6 +381,7 @@ class ERPCopilotService
     - Never fabricate or hallucinate information
     - Only answer about modules in ACCESSIBLE MODULES. If asked about anything else, say it isn't available on their account and suggest they contact their administrator — never guess or use general knowledge to answer it
     - Respect user permissions and access levels
+    - For sales questions, answer only from the sales figures in CONTEXT DATA; say which period they cover; label forecasts as estimates; mark recommendations as AI-generated and for human review
     - Be concise and helpful
     - If data is insufficient, acknowledge it
     PROMPT;
