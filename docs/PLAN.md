@@ -48,8 +48,11 @@ product & customer master files, historical sales files, target examples, financ
 - Demo: `php artisan sales:demo --password=…` creates "Demo Foods (Pty) Ltd" (26 months of sales, targets, matrix).
 - Queue workers must listen on `default,imports`; the scheduler (`schedule:work` / cron) runs `sales:mailboxes` every minute.
 
+- **Release 2–3 done (2026-11-09):** target allocation, target imports, performance alerts + settings, formula / growth /
+  composite targets, Insights page (unusual movements, product lifecycle, what-if, AI insights). Change-request workflow dropped by the owner.
+
 ## Still open
-- Real Vector inputs (§33): sample daily report → build its layout; mailbox details (Entra app or IMAP).
-- Release 2 done: target allocation (equal / % / last-year mix / manual; children always sum to parent). Done too: target imports, performance alerts (achieved / at risk / unusual day, settings page). Not built: formula/composite targets, anomaly detection beyond the daily check,
-  what-if, backup/restore runbook, POPIA document, load testing.
-- Charts use ApexCharts (already in the stack) instead of ECharts — swap if ECharts is contractual.
+- Real Vector inputs (§33): sample daily report → build its layout; mailbox details (Entra app or IMAP); masters; history; targets.
+- Operations (not code in this repo): production server, queue worker + scheduler, APP_EDITION for SaaS, backups with a tested
+  restore, POPIA document, load test with a real year of data.
+- Charts use ApexCharts (already in the stack) instead of ECharts — swap only if ECharts is contractual.
