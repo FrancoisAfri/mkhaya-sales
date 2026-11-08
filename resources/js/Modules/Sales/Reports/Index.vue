@@ -39,6 +39,7 @@ const statusColor: Record<string, string> = { achieved: 'success', on_track: 'in
       <div><h3 class="text-h5 font-weight-bold mb-1">{{ report.title }}</h3><p class="text-body-2 text-medium-emphasis mb-0">{{ filters.from }} to {{ filters.to }}</p></div>
       <div v-if="canExport" class="d-flex gap-2">
         <VBtn v-for="f in ['xlsx', 'csv', 'pdf']" :key="f" variant="tonal" size="small" prepend-icon="tabler-download" :href="exportUrl(f)">{{ f.toUpperCase() }}</VBtn>
+        <VBtn variant="text" size="small" prepend-icon="tabler-calendar-time" href="/sales/reports/schedules">Email schedules</VBtn>
       </div>
     </div>
 

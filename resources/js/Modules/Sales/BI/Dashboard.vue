@@ -22,7 +22,7 @@ const crossLabels = reactive<Record<string, string>>({})
 const appliedFilters = computed(() => Object.fromEntries(Object.entries(f).filter(([, v]) => v !== null && v !== undefined && v !== '')))
 function setFilter(k: string, v: any, label?: string) { f[k] = v; if (label) crossLabels[k] = label }
 function clearFilter(k: string) { delete f[k]; delete crossLabels[k] }
-function onCrossFilter(e: { dimension: string; key: any; label: string }) { setFilter(`${e.dimension}_id`, e.key, e.label) }
+function onCrossFilter(e: { dimension: string; key: any; label: string }) { setFilter(['province', 'city'].includes(e.dimension) ? e.dimension : `${e.dimension}_id`, e.key, e.label) }
 const lookup = (k: string) => ({ customer_id: 'customers', product_id: 'products', category_id: 'categories', brand_id: 'brands', region_id: 'regions', customer_group_id: 'customer_groups', sales_team_id: 'sales_teams', salesperson_id: 'salespeople', business_unit_id: 'business_units' } as any)[k]
 const chipLabel = (k: string, v: any) => crossLabels[k] ?? props.options[lookup(k)]?.find((o: any) => o.value === Number(v))?.title ?? v
 const chips = computed(() => Object.entries(appliedFilters.value).filter(([k]) => !['from', 'to'].includes(k)))
@@ -158,8 +158,8 @@ function exportPdf() { window.print() }
         <template v-else-if="!['none'].includes(cfgVisual?.kind ?? '')">
           <div class="bi-cfg-label">Data</div>
           <VSelect v-model="configuring.config.measures" :items="measureItems" label="Measures" multiple chips closable-chips density="compact" variant="outlined" hide-details @update:model-value="dirty = true" />
-          <VSelect v-if="!['kpi', 'time', 'forecast', 'narrative', 'cohort', 'calendar'].includes(cfgVisual!.kind)" v-model="configuring.config.dimension" :items="dimItems" label="Category / dimension" density="compact" variant="outlined" hide-details @update:model-value="dirty = true" />
-          <VSelect v-if="['time', 'matrix', 'sankey', 'treemap', 'boxplot'].includes(cfgVisual!.kind)" v-model="configuring.config.series" :items="[{ value: null, title: 'None' }, ...dimItems]" label="Series / second level" density="compact" variant="outlined" hide-details @update:model-value="dirty = true" />
+          <VSelect v-if="!['kpi', 'time', 'forecast', 'narrative', 'cohort', 'calendar', 'geo', 'influencers'].includes(cfgVisual!.kind)" v-model="configuring.config.dimension" :items="dimItems" label="Category / dimension" density="compact" variant="outlined" hide-details @update:model-value="dirty = true" />
+          <VSelect v-if="['time', 'matrix', 'sankey', 'treemap', 'boxplot', 'network'].includes(cfgVisual!.kind)" v-model="configuring.config.series" :items="[{ value: null, title: 'None' }, ...dimItems]" label="Series / second level" density="compact" variant="outlined" hide-details @update:model-value="dirty = true" />
           <VSelect v-if="cfgVisual!.kind === 'time'" v-model="configuring.config.grain" :items="catalogue.grains" label="Time interval" density="compact" variant="outlined" hide-details @update:model-value="dirty = true" />
           <VSelect v-model="configuring.config.period" :items="periodItems" label="Period" density="compact" variant="outlined" hide-details @update:model-value="dirty = true" />
           <div class="bi-cfg-label">Display</div>

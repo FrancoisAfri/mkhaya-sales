@@ -51,6 +51,7 @@ class SalesDemo extends Command
             $customers = collect(range(1, 24))->map(fn ($i) => Models\Customer::updateOrCreate(['customer_code' => sprintf('C%04d', $i)], [
                 'customer_name' => ['Spar', 'Checkers', 'Pick n Pay', 'Makro', 'Food Lover\'s', 'Boxer', 'Shoprite', 'Woolworths'][$i % 8] . ' ' . ['Rosebank', 'Fourways', 'Claremont', 'Umhlanga', 'Gqeberha', 'Sandton', 'Durbanville', 'Midrand'][($i * 3) % 8] . ($i > 16 ? ' II' : ''),
                 'customer_group_id' => $groups[$i % 4]->id, 'region_id' => $regions[$i % 4]->id, 'is_active' => true, 'needs_review' => false,
+                ...self::location(['Rosebank', 'Fourways', 'Claremont', 'Umhlanga', 'Gqeberha', 'Sandton', 'Durbanville', 'Midrand'][($i * 3) % 8], $i),
             ]));
 
             $end = CarbonImmutable::today();
@@ -102,5 +103,19 @@ class SalesDemo extends Command
         $this->info('Demo Foods ready: ' . DB::table('sales_records')->where('company_id', $company->id)->count() . ' sales rows.');
 
         return self::SUCCESS;
+    }
+
+    /** Real suburb coordinates (with a small offset per store) so the demo maps have something to show. */
+    public static function location(string $suburb, int $i): array
+    {
+        $at = [
+            'Rosebank' => ['Johannesburg', 'Gauteng', -26.1467, 28.0436], 'Fourways' => ['Johannesburg', 'Gauteng', -26.0205, 28.0067],
+            'Claremont' => ['Cape Town', 'Western Cape', -33.9806, 18.4653], 'Umhlanga' => ['Durban', 'KwaZulu-Natal', -29.7270, 31.0849],
+            'Gqeberha' => ['Gqeberha', 'Eastern Cape', -33.9608, 25.6022], 'Sandton' => ['Johannesburg', 'Gauteng', -26.1076, 28.0567],
+            'Durbanville' => ['Cape Town', 'Western Cape', -33.8326, 18.6477], 'Midrand' => ['Midrand', 'Gauteng', -25.9992, 28.1263],
+        ][$suburb] ?? ['Johannesburg', 'Gauteng', -26.2041, 28.0473];
+        $jitter = fn ($n) => (($i * $n) % 17 - 8) / 1000;
+
+        return ['city' => $at[0], 'province' => $at[1], 'latitude' => $at[2] + $jitter(7), 'longitude' => $at[3] + $jitter(11)];
     }
 }

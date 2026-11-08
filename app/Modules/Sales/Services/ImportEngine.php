@@ -559,6 +559,18 @@ class ImportEngine
                         'salesperson_id' => $matcher->lookup('salespeople', $d['salesperson'] ?? null, true),
                         'distribution_centre_id' => $matcher->lookup('distribution_centres', $d['distribution_centre'] ?? null, true),
                     ];
+                    if ($kind !== 'product') {
+                        foreach (['province', 'city'] as $k) {
+                            if (! empty($d[$k])) {
+                                $values[$k] = mb_substr(trim((string) $d[$k]), 0, $k === 'province' ? 60 : 120);
+                            }
+                        }
+                        $lat = isset($d['latitude']) && is_numeric($d['latitude']) ? (float) $d['latitude'] : null;
+                        $lng = isset($d['longitude']) && is_numeric($d['longitude']) ? (float) $d['longitude'] : null;
+                        if ($lat !== null && $lng !== null && abs($lat) <= 90 && abs($lng) <= 180) {
+                            [$values['latitude'], $values['longitude']] = [$lat, $lng];
+                        }
+                    }
                     if (isset($d['status'])) {
                         $values['is_active'] = ! in_array(mb_strtolower($d['status']), ['inactive', 'no', '0', 'false', 'n'], true);
                     }

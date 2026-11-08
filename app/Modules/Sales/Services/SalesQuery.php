@@ -22,12 +22,19 @@ class SalesQuery
         'business_unit_id', 'sales_team_id', 'salesperson_id', 'distribution_centre_id',
     ];
 
+    /** Filters on the customer's location — text, not ids. */
+    public const TEXT_FILTERS = ['province', 'city'];
+
     public function filters(Request $request): array
     {
         $f = ['from' => $request->query('from'), 'to' => $request->query('to'), 'batch' => $request->query('batch')];
         foreach (self::FILTERS as $k) {
             $v = $request->query($k);
             $f[$k] = $v !== null && $v !== '' ? (int) $v : null;
+        }
+        foreach (self::TEXT_FILTERS as $k) {
+            $v = $request->query($k);
+            $f[$k] = is_string($v) && $v !== '' ? mb_substr($v, 0, 120) : null;
         }
 
         return array_filter($f, fn ($v) => $v !== null && $v !== '');
@@ -57,6 +64,12 @@ class SalesQuery
         }
         if (! empty($f['brand_id'])) {
             $q->whereIn('s.product_id', DB::table('products')->where('brand_id', $f['brand_id'])->select('id'));
+        }
+        foreach (self::TEXT_FILTERS as $k) {
+            if (isset($f[$k]) && $f[$k] !== '') {
+                // '(none)' is the "no province / city" bucket on maps and trees.
+                $q->whereIn('s.customer_id', DB::table('customers')->where(fn ($w) => $f[$k] === '(none)' ? $w->whereNull($k) : $w->where($k, $f[$k]))->select('id'));
+            }
         }
         if (! empty($f['category_id'])) {
             $cats = DB::table('product_categories')->where('id', $f['category_id'])->orWhere('parent_id', $f['category_id'])->select('id');

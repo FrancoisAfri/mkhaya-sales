@@ -54,7 +54,17 @@ class BIQueryService
     public const GRAINS = ['day', 'week', 'month', 'quarter', 'year'];
     public const PERIODS = ['dashboard', 'mtd', 'last_month', 'qtd', 'ytd', 'last_12_months', 'last_24_months', 'all'];
     public const KINDS = ['category', 'time', 'kpi', 'matrix', 'scatter', 'waterfall', 'pareto', 'histogram', 'boxplot',
-        'calendar', 'cohort', 'sankey', 'treemap', 'forecast', 'table', 'narrative', 'decomposition'];
+        'calendar', 'cohort', 'sankey', 'treemap', 'forecast', 'table', 'narrative', 'decomposition', 'geo', 'influencers', 'network'];
+
+    /** Rough centres of the South African provinces — used when a province has no geocoded customers. */
+    public const PROVINCES = [
+        'Gauteng' => [-26.27, 28.11], 'Western Cape' => [-33.23, 21.86], 'KwaZulu-Natal' => [-28.53, 30.90],
+        'Eastern Cape' => [-32.30, 26.42], 'Free State' => [-28.45, 26.80], 'Limpopo' => [-23.40, 29.42],
+        'Mpumalanga' => [-25.57, 30.53], 'North West' => [-26.66, 25.28], 'Northern Cape' => [-29.05, 21.86],
+    ];
+
+    /** Dimensions the key-influencer scan looks through for what explains a change. */
+    public const INFLUENCER_DIMENSIONS = ['region', 'province', 'customer_group', 'category', 'brand', 'sales_team', 'salesperson', 'distribution_centre', 'business_unit'];
 
     public function __construct(private SalesQuery $query, private SalesAnalytics $analytics) {}
 
@@ -88,6 +98,9 @@ class BIQueryService
                 'sankey', 'treemap' => $this->hierarchy($cfg, $f, $user),
                 'forecast' => $this->forecast($f, $user),
                 'narrative' => $this->narrative($f, $user),
+                'geo' => $this->geo($cfg, $f, $user),
+                'influencers' => $this->influencers($f, $user),
+                'network' => $this->network($cfg, $f, $user),
             };
         });
     }
@@ -323,6 +336,115 @@ class BIQueryService
         return ['lines' => $lines];
     }
 
+    /**
+     * Customer locations for the maps: one point per geocoded customer (largest first) and one
+     * bubble per province, sized by sales and coloured by growth on last year.
+     */
+    private function geo(array $cfg, array $f, ?User $user): array
+    {
+        $cur = $this->query->base($f, $user)->join('customers as gc', 'gc.id', '=', 's.customer_id');
+        $ly = $this->query->base(['from' => CarbonImmutable::parse($f['from'])->subYear()->toDateString(), 'to' => CarbonImmutable::parse($f['to'])->subYear()->toDateString()] + $f, $user)
+            ->join('customers as gc', 'gc.id', '=', 's.customer_id');
+
+        $lyByCustomer = (clone $ly)->whereNotNull('gc.latitude')->groupBy('s.customer_id')->selectRaw('s.customer_id, sum(s.net_value) as v')->pluck('v', 'customer_id');
+        $points = (clone $cur)->whereNotNull('gc.latitude')->whereNotNull('gc.longitude')
+            ->groupBy('s.customer_id', 'gc.customer_name', 'gc.latitude', 'gc.longitude', 'gc.province', 'gc.city')
+            ->selectRaw('s.customer_id, gc.customer_name, gc.latitude, gc.longitude, gc.province, gc.city, sum(s.net_value) as v')
+            ->orderByDesc('v')->limit(min(3000, max(100, (int) ($cfg['top'] ?: 0) * 30 ?: 2000)))->get()
+            ->map(function ($r) use ($lyByCustomer) {
+                $prev = (float) ($lyByCustomer[$r->customer_id] ?? 0);
+
+                return ['key' => $r->customer_id, 'name' => $r->customer_name, 'lat' => (float) $r->latitude, 'lng' => (float) $r->longitude,
+                    'province' => $r->province, 'city' => $r->city, 'value' => round((float) $r->v, 2),
+                    'growth' => $prev > 0 ? round(((float) $r->v - $prev) / $prev * 100, 1) : null];
+            })->values();
+
+        $lyByProvince = (clone $ly)->groupByRaw('gc.province')->selectRaw("coalesce(gc.province, '(none)') as p, sum(s.net_value) as v")->pluck('v', 'p');
+        $regions = (clone $cur)->groupByRaw('gc.province')
+            ->selectRaw("coalesce(gc.province, '(none)') as p, sum(s.net_value) as v, count(distinct s.customer_id) as n, avg(gc.latitude) as lat, avg(gc.longitude) as lng")
+            ->get()->map(function ($r) use ($lyByProvince) {
+                $prev = (float) ($lyByProvince[$r->p] ?? 0);
+                $centre = self::PROVINCES[$r->p] ?? null;
+
+                return ['key' => $r->p, 'name' => $r->p === '(none)' ? '(no province)' : $r->p, 'value' => round((float) $r->v, 2), 'last_year' => round($prev, 2),
+                    'growth' => $prev > 0 ? round(((float) $r->v - $prev) / $prev * 100, 1) : null, 'customers' => (int) $r->n,
+                    'lat' => $centre[0] ?? ($r->lat !== null ? (float) $r->lat : null), 'lng' => $centre[1] ?? ($r->lng !== null ? (float) $r->lng : null)];
+            })->sortByDesc('value')->values();
+
+        $customers = (int) (clone $cur)->distinct()->count('s.customer_id');
+
+        return ['points' => $points->all(), 'regions' => $regions->all(), 'customers' => $customers,
+            'located' => (int) (clone $cur)->whereNotNull('gc.latitude')->distinct()->count('s.customer_id'), 'dimension' => 'customer'];
+    }
+
+    /**
+     * Key influencers (BI spec §F): which members of which dimensions explain the change on last
+     * year. Each member's change is set against the total change, and each dimension is scored by
+     * how much of the movement its three biggest members explain.
+     */
+    private function influencers(array $f, ?User $user): array
+    {
+        $tot = $this->values(['net_value', 'last_year'], $f, $user, [])[''] ?? ['net_value' => 0, 'last_year' => 0];
+        $totalChange = $tot['net_value'] - $tot['last_year'];
+        $overallGrowth = $tot['last_year'] > 0 ? round($totalChange / $tot['last_year'] * 100, 1) : null;
+        $members = [];
+        $factors = [];
+        foreach (self::INFLUENCER_DIMENSIONS as $dim) {
+            $rows = collect($this->values(['net_value', 'last_year'], $f, $user, [$dim]))
+                ->map(fn ($r) => ['dimension' => $dim, 'dimension_label' => SalesAnalytics::DIMENSIONS[$dim], 'key' => $r['_k0'] ?? null, 'name' => $r['_l0'] ?? '—',
+                    'value' => round($r['net_value'], 2), 'last_year' => round($r['last_year'], 2), 'change' => round($r['net_value'] - $r['last_year'], 2),
+                    'growth' => $r['last_year'] > 0 ? round(($r['net_value'] - $r['last_year']) / $r['last_year'] * 100, 1) : null,
+                    'share' => $tot['net_value'] > 0 ? round($r['net_value'] / $tot['net_value'] * 100, 1) : 0]);
+            // A dimension where everything sits in one "(none)" bucket explains nothing.
+            if ($rows->count() < 2) {
+                continue;
+            }
+            $abs = $rows->sum(fn ($r) => abs($r['change'])) ?: 1;
+            $factors[] = ['dimension' => $dim, 'label' => SalesAnalytics::DIMENSIONS[$dim], 'members' => $rows->count(),
+                'score' => round($rows->sortByDesc(fn ($r) => abs($r['change']))->take(3)->sum(fn ($r) => abs($r['change'])) / $abs * 100, 1)];
+            array_push($members, ...$rows->values()->all());
+        }
+        $members = collect($members);
+        // Share of change = this member's part of all the falls (or all the gains) in its own dimension.
+        $falls = $members->where('change', '<', 0)->groupBy('dimension')->map(fn ($g) => abs($g->sum('change')) ?: 1);
+        $gains = $members->where('change', '>', 0)->groupBy('dimension')->map(fn ($g) => $g->sum('change') ?: 1);
+        $shape = fn ($r, $totals) => $r + ['share_of_change' => round(abs($r['change']) / ($totals[$r['dimension']] ?? 1) * 100, 1),
+            'vs_overall' => $r['growth'] !== null && $overallGrowth !== null ? round($r['growth'] - $overallGrowth, 1) : null];
+
+        return [
+            'overall' => ['value' => round($tot['net_value'], 2), 'last_year' => round($tot['last_year'], 2), 'change' => round($totalChange, 2), 'growth' => $overallGrowth],
+            'decline' => $members->where('change', '<', 0)->sortBy('change')->take(8)->map(fn ($r) => $shape($r, $falls))->values()->all(),
+            'growth' => $members->where('change', '>', 0)->sortByDesc('change')->take(6)->map(fn ($r) => $shape($r, $gains))->values()->all(),
+            'factors' => collect($factors)->sortByDesc('score')->values()->all(),
+        ];
+    }
+
+    /** Who buys what: a two-sided network (customers ↔ categories by default) for the network and chord visuals. */
+    private function network(array $cfg, array $f, ?User $user): array
+    {
+        $a = $cfg['dimension'] ?: 'customer';
+        $b = $cfg['series'] ?: 'category';
+        if ($a === $b || in_array($a, self::GRAINS, true) || in_array($b, self::GRAINS, true)) {
+            throw ValidationException::withMessages(['config' => 'A network needs two different non-date dimensions.']);
+        }
+        $m = $cfg['measures'][0];
+        $rows = collect($this->values([$m], $f, $user, [$a, $b]))->filter(fn ($r) => $r[$m] > 0);
+        $left = $rows->groupBy('_k0')->map(fn ($g) => ['name' => $g->first()['_l0'], 'value' => $g->sum($m)])->sortByDesc('value')->take($cfg['top'] ?: 15);
+        $right = $rows->whereIn('_k0', $left->keys()->all())->groupBy('_k1')->map(fn ($g) => ['name' => $g->first()['_l1'], 'value' => $g->sum($m)])->sortByDesc('value')->take(12);
+        $nodes = [];
+        foreach ($left as $k => $n) {
+            $nodes[] = ['id' => "a:{$k}", 'key' => $k, 'name' => $n['name'], 'value' => round($n['value'], 2), 'category' => 0];
+        }
+        foreach ($right as $k => $n) {
+            $nodes[] = ['id' => "b:{$k}", 'key' => $k, 'name' => $n['name'], 'value' => round($n['value'], 2), 'category' => 1];
+        }
+        $links = $rows->filter(fn ($r) => $left->has($r['_k0']) && $right->has($r['_k1']))
+            ->map(fn ($r) => ['source' => "a:{$r['_k0']}", 'target' => "b:{$r['_k1']}", 'value' => round($r[$m], 2)])->values()->all();
+
+        return ['nodes' => $nodes, 'links' => $links, 'sides' => [SalesAnalytics::DIMENSIONS[$a], SalesAnalytics::DIMENSIONS[$b]],
+            'dimensions' => [$a, $b], 'formats' => $this->formats([$m])];
+    }
+
     // ── Engine ──────────────────────────────────────────────────────────────────────────────────
 
     /**
@@ -420,7 +542,7 @@ class BIQueryService
     private function period(array $cfg, array $filters): array
     {
         $last = CarbonImmutable::parse($this->analytics->lastSaleDate() ?? now());
-        $f = array_intersect_key(array_merge($filters, $cfg['filters'] ?? []), array_flip(array_merge(SalesQuery::FILTERS, ['from', 'to'])));
+        $f = array_intersect_key(array_merge($filters, $cfg['filters'] ?? []), array_flip(array_merge(SalesQuery::FILTERS, SalesQuery::TEXT_FILTERS, ['from', 'to'])));
         [$from, $to] = match ($cfg['period']) {
             'mtd' => [$last->startOfMonth(), $last],
             'last_month' => [$last->subMonthNoOverflow()->startOfMonth(), $last->subMonthNoOverflow()->endOfMonth()],

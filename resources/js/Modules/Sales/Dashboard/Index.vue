@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3'
 import { computed } from 'vue'
-import VueApexCharts from 'vue3-apexcharts'
+import VChart from 'vue-echarts'
+import 'echarts'
+import { rankedBars, trendCompare } from '@/Components/BI/visuals'
 import FilterBar from '@/Components/Sales/FilterBar.vue'
 
 const props = defineProps<{
@@ -22,24 +24,16 @@ const when = (s: string | null) => s ? new Date(s).toLocaleString('en-ZA', { dat
 const tabs = [['executive', 'Executive'], ['customers', 'Customers'], ['products', 'Products'], ['targets', 'Targets']]
 const go = (v: string) => router.get(`/sales/dashboard${v === 'executive' ? '' : '/' + v}`, props.filters, { preserveState: false })
 
-const trendChart = computed(() => ({
-  series: [{ name: 'This period', data: props.trend?.current ?? [] }, { name: 'Same period last year', data: props.trend?.previous ?? [] }],
-  options: {
-    chart: { type: 'area', toolbar: { show: false }, fontFamily: 'inherit' }, stroke: { curve: 'smooth', width: [3, 2], dashArray: [0, 5] },
-    colors: ['#6A0DAD', '#9e9e9e'], dataLabels: { enabled: false }, fill: { type: ['gradient', 'solid'], opacity: [0.25, 0] },
-    xaxis: { categories: props.trend?.labels ?? [], labels: { rotate: -45 } }, legend: { position: 'top' },
-    yaxis: { labels: { formatter: (v: number) => 'R ' + (v >= 1e6 ? (v / 1e6).toFixed(1) + 'm' : v >= 1e3 ? (v / 1e3).toFixed(0) + 'k' : v.toFixed(0)) } },
-    tooltip: { y: { formatter: (v: number) => money(v) } },
-  },
-}))
-const bar = (rows: any[] | undefined, dim: string, measure = 'value') => ({
-  series: [{ name: measure === 'value' ? 'Net sales' : measure, data: (rows ?? []).slice(0, 10).map(r => r[measure]) }],
-  options: {
-    chart: { type: 'bar', toolbar: { show: false }, fontFamily: 'inherit' }, plotOptions: { bar: { horizontal: true, borderRadius: 4 } },
-    colors: ['#00CED1'], dataLabels: { enabled: false }, xaxis: { categories: (rows ?? []).slice(0, 10).map(r => String(r[dim]).slice(0, 28)) },
-    tooltip: { y: { formatter: (v: number) => money(v) } },
-  },
-})
+const trendChart = computed(() => trendCompare(props.trend?.labels ?? [], props.trend?.current ?? [], props.trend?.previous ?? []))
+const bar = (rows: any[] | undefined, dim: string, measure = 'value') => {
+  const top = (rows ?? []).slice(0, 10)
+  return { option: rankedBars(top.map(r => String(r[dim] ?? '—')), top.map(r => r[measure]), dim === 'product' || dim === 'brand' || dim === 'category' ? '#00A8B5' : '#6A0DAD'), rows: top, dim }
+}
+// Click a bar to filter the dashboard by it.
+const drill = (b: ReturnType<typeof bar>, p: any) => {
+  const r = b.rows[b.rows.length - 1 - p.dataIndex]
+  if (r?.key !== undefined && r.key !== null) router.get(location.pathname, { ...props.filters, [`${b.dim}_id`]: r.key }, { preserveScroll: true })
+}
 const statusColor: Record<string, string> = { achieved: 'success', on_track: 'info', at_risk: 'warning', behind: 'error', breached: 'error', not_started: 'default' }
 const empty = computed(() => !props.kpis.last_sale_date)
 </script>
@@ -70,14 +64,14 @@ const empty = computed(() => !props.kpis.last_sale_date)
     </VRow>
 
     <template v-if="view === 'executive'">
-      <VCard elevation="0" border rounded="lg" class="mb-4" :title="`Sales trend (${trend?.grain})`" subtitle="Compared with the same period last year">
-        <VCardText><VueApexCharts type="area" height="300" :options="trendChart.options" :series="trendChart.series" /></VCardText>
+      <VCard class="mb-4" :title="`Sales trend (${trend?.grain})`" subtitle="Compared with the same period last year">
+        <VCardText><VChart :option="trendChart" autoresize style="height: 300px" /></VCardText>
       </VCard>
       <VRow>
-        <VCol cols="12" md="6"><VCard elevation="0" border rounded="lg" title="Top customers"><VCardText><VueApexCharts type="bar" height="300" v-bind="bar(topCustomers, 'customer')" /></VCardText></VCard></VCol>
-        <VCol cols="12" md="6"><VCard elevation="0" border rounded="lg" title="Top products"><VCardText><VueApexCharts type="bar" height="300" v-bind="bar(topProducts, 'product')" /></VCardText></VCard></VCol>
+        <VCol cols="12" md="6"><VCard title="Top customers"><VCardText><VChart :option="bar(topCustomers, 'customer').option" autoresize style="height: 300px" @click="p => drill(bar(topCustomers, 'customer'), p)" /></VCardText></VCard></VCol>
+        <VCol cols="12" md="6"><VCard title="Top products"><VCardText><VChart :option="bar(topProducts, 'product').option" autoresize style="height: 300px" @click="p => drill(bar(topProducts, 'product'), p)" /></VCardText></VCard></VCol>
         <VCol v-for="[title, rows, dim] in [['Underperforming customers', decliningCustomers, 'customer'], ['Underperforming products', decliningProducts, 'product']]" :key="String(title)" cols="12" md="6">
-          <VCard elevation="0" border rounded="lg" :title="String(title)" subtitle="Largest falls against the same period last year">
+          <VCard :title="String(title)" subtitle="Largest falls against the same period last year">
             <VTable density="compact"><tbody>
               <tr v-for="r in (rows as any[])" :key="r.key"><td>{{ r[dim as string] }}</td><td class="text-end">{{ money(r.value) }}</td><td class="text-end" :class="tone(r.change)">{{ money(r.change) }}</td><td class="text-end" :class="tone(r.growth)">{{ pct(r.growth) }}</td></tr>
               <tr v-if="!(rows as any[])?.length"><td class="text-medium-emphasis">Nothing to show.</td></tr>
@@ -90,7 +84,7 @@ const empty = computed(() => !props.kpis.last_sale_date)
     <template v-if="view === 'customers' || view === 'products'">
       <VRow>
         <VCol cols="12" md="7">
-          <VCard elevation="0" border rounded="lg" :title="view === 'customers' ? 'Customer ranking' : 'Product ranking'">
+          <VCard :title="view === 'customers' ? 'Customer ranking' : 'Product ranking'">
             <VTable density="compact" fixed-header height="520">
               <thead><tr><th>#</th><th>{{ view === 'customers' ? 'Customer' : 'Product' }}</th><th class="text-end">Net sales</th><th class="text-end">Share</th><th class="text-end">Last year</th><th class="text-end">Growth</th></tr></thead>
               <tbody><tr v-for="(r, i) in ranking" :key="r.key">
@@ -109,11 +103,11 @@ const empty = computed(() => !props.kpis.last_sale_date)
               <div><div class="text-h5">{{ concentration?.customers }}</div><div class="text-caption">buying customers</div></div>
             </VCardText>
           </VCard>
-          <VCard elevation="0" border rounded="lg" class="mb-4" :title="view === 'customers' ? 'By customer group' : 'By category'">
-            <VCardText><VueApexCharts type="bar" height="260" v-bind="view === 'customers' ? bar(groups, 'customer_group') : bar(categories, 'category')" /></VCardText>
+          <VCard class="mb-4" :title="view === 'customers' ? 'By customer group' : 'By category'">
+            <VCardText><VChart :option="(view === 'customers' ? bar(groups, 'customer_group') : bar(categories, 'category')).option" autoresize style="height: 260px" @click="p => drill(view === 'customers' ? bar(groups, 'customer_group') : bar(categories, 'category'), p)" /></VCardText>
           </VCard>
-          <VCard elevation="0" border rounded="lg" :title="view === 'customers' ? 'By region' : 'By brand'">
-            <VCardText><VueApexCharts type="bar" height="260" v-bind="view === 'customers' ? bar(regions, 'region') : bar(brands, 'brand')" /></VCardText>
+          <VCard :title="view === 'customers' ? 'By region' : 'By brand'">
+            <VCardText><VChart :option="(view === 'customers' ? bar(regions, 'region') : bar(brands, 'brand')).option" autoresize style="height: 260px" @click="p => drill(view === 'customers' ? bar(regions, 'region') : bar(brands, 'brand'), p)" /></VCardText>
           </VCard>
         </VCol>
       </VRow>

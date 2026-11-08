@@ -63,6 +63,10 @@ final class ImportFields
                 'sales_team' => ['label' => 'Sales team', 'type' => 'text', 'aliases' => ['team', 'sales team']],
                 'salesperson' => ['label' => 'Salesperson', 'type' => 'text', 'aliases' => ['rep', 'salesperson', 'sales rep']],
                 'distribution_centre' => ['label' => 'Distribution centre', 'type' => 'text', 'aliases' => ['dc', 'depot', 'distribution centre']],
+                'province' => ['label' => 'Province', 'type' => 'text', 'aliases' => ['province', 'state']],
+                'city' => ['label' => 'City / town', 'type' => 'text', 'aliases' => ['city', 'town', 'suburb']],
+                'latitude' => ['label' => 'Latitude', 'type' => 'number', 'aliases' => ['latitude', 'lat', 'gps lat', 'y']],
+                'longitude' => ['label' => 'Longitude', 'type' => 'number', 'aliases' => ['longitude', 'lng', 'lon', 'long', 'gps long', 'x']],
                 'status' => ['label' => 'Status (active/inactive)', 'type' => 'text', 'aliases' => ['status', 'active']],
             ],
             'targets' => [

@@ -61,5 +61,9 @@ product & customer master files, historical sales files, target examples, financ
 - Real Vector inputs (§33): sample daily report → build its layout; mailbox details (Entra app or IMAP); masters; history; targets.
 - Operations (not code in this repo): production server, queue worker + scheduler, APP_EDITION for SaaS, backups with a tested
   restore, POPIA document, load test with a real year of data.
-- BI items not yet built: maps (need customer coordinates — empty state explains), key influencers, network/chord graphs,
-  interactive decomposition tree, scheduled report e-mails, per-visual filters UI, older pages still use ApexCharts.
+- BI items not yet built: per-visual filters UI.
+- Done 2026-11-08: customer maps (lat/lng/province/city on customers; points, bubble and regional maps on Leaflet + OSM
+  tiles), key influencers, network + chord, interactive decomposition tree, scheduled report emails
+  (`sales:report-schedules` every minute; Reports → Email schedules), ApexCharts removed (Forecast and the original
+  dashboards now on ECharts). Maps need internet for the OpenStreetMap tiles; for heavy production use, consider a
+  paid tile provider.

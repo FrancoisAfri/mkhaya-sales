@@ -3,11 +3,9 @@
 namespace App\Modules\Sales\Http\Controllers;
 
 use App\Http\Controllers\Controller;
-use App\Modules\Sales\Models\ImportBatch;
-use App\Modules\Sales\Services\ForecastService;
+use App\Modules\Sales\Services\ReportExporter;
 use App\Modules\Sales\Services\SalesAnalytics;
 use App\Modules\Sales\Services\SalesQuery;
-use App\Modules\Sales\Services\TargetService;
 use App\Modules\Sales\Support\StandardReports;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -78,46 +76,15 @@ class ReportController extends Controller
         $f = $this->query->filters($request);
         [$from, $to] = $this->analytics->period($f);
         $f += ['from' => $from->toDateString(), 'to' => $to->toDateString()];
-        $result = $this->run($report, $f, $request);
-        [$headings, $rows] = $this->table($result);
+        $file = app(ReportExporter::class)->file($report, $f, $request->user(), $format);
 
         DB::table('report_exports')->insert([
             'company_id' => \App\Modules\Sales\Support\SalesCompany::id(), 'user_id' => $request->user()->id, 'report' => $report['title'],
-            'format' => $format, 'parameters' => json_encode($request->query()), 'rows' => count($rows), 'created_at' => now(),
+            'format' => $format, 'parameters' => json_encode($request->query()), 'rows' => $file['rows'], 'created_at' => now(),
         ]);
         activity('sales')->causedBy($request->user())->withProperties(['report' => $report['title'], 'format' => $format])->log('report export');
 
-        $name = str($report['title'])->slug() . '-' . $f['from'] . '-to-' . $f['to'];
-        if ($format === 'pdf') {
-            return \Barryvdh\DomPDF\Facade\Pdf::loadView('sales.report-pdf', [
-                'title' => $report['title'], 'period' => "{$f['from']} to {$f['to']}", 'headings' => $headings, 'rows' => $rows,
-                'company' => DB::table('companies')->where('id', \App\Modules\Sales\Support\SalesCompany::id())->value('name'),
-            ])->setPaper('a4', count($headings) > 5 ? 'landscape' : 'portrait')->download("{$name}.pdf");
-        }
-        if ($format === 'csv') {
-            return response()->streamDownload(function () use ($headings, $rows) {
-                $out = fopen('php://output', 'w');
-                fputcsv($out, $headings);
-                foreach ($rows as $r) {
-                    fputcsv($out, $r);
-                }
-                fclose($out);
-            }, "{$name}.csv", ['Content-Type' => 'text/csv']);
-        }
-
-        $book = new \PhpOffice\PhpSpreadsheet\Spreadsheet;
-        $sheet = $book->getActiveSheet()->setTitle('Report');
-        $sheet->fromArray([[$report['title']], ["{$f['from']} to {$f['to']}"], [], $headings], null, 'A1');
-        $sheet->fromArray($rows, null, 'A5');
-        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
-        $sheet->getStyle('A4:' . \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(count($headings)) . '4')->getFont()->setBold(true);
-        foreach (range(1, count($headings)) as $i) {
-            $sheet->getColumnDimensionByColumn($i)->setAutoSize(true);
-        }
-        $tmp = tempnam(sys_get_temp_dir(), 'rep');
-        (new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($book))->save($tmp);
-
-        return response()->download($tmp, "{$name}.xlsx")->deleteFileAfterSend();
+        return response()->download($file['path'], $file['name'], ['Content-Type' => $file['mime']])->deleteFileAfterSend();
     }
 
     // ── helpers ─────────────────────────────────────────────────────────────────────────────────
@@ -148,56 +115,7 @@ class ReportController extends Controller
 
     private function run(array $report, array $f, Request $request): array
     {
-        $user = $request->user();
-
-        return match ($report['special'] ?? null) {
-            'targets' => ['kind' => 'targets', 'rows' => app(TargetService::class)->performanceList($f, $user)],
-            'forecast' => ['kind' => 'forecast'] + app(ForecastService::class)->monthly($f, $user),
-            'imports' => ['kind' => 'imports', 'rows' => ImportBatch::where('target', 'sales')->whereBetween('created_at', [$f['from'], $f['to'] . ' 23:59:59'])
-                ->latest('id')->limit(200)->get(['uuid', 'file_name', 'source', 'status', 'total_rows', 'valid_rows', 'invalid_rows', 'duplicate_rows', 'inserted_rows', 'totals', 'source_totals', 'period_from', 'period_to', 'completed_at'])],
-            'quality' => ['kind' => 'quality', 'rows' => $this->quality()],
-            default => ['kind' => 'grouped'] + $this->analytics->grouped($f, $user, $report['dims'], $report['measure'] ?? 'net_value', $report['compare'] ?? 'none', 2000, $report['order'] ?? 'desc'),
-        };
-    }
-
-    private function quality(): array
-    {
-        $count = fn ($q) => $q->count();
-
-        return [
-            ['check' => 'Products created from sales files awaiting review', 'value' => DB::table('products')->where('company_id', $this->company())->where('needs_review', true)->count()],
-            ['check' => 'Customers created from sales files awaiting review', 'value' => DB::table('customers')->where('company_id', $this->company())->where('needs_review', true)->count()],
-            ['check' => 'Products without a category', 'value' => DB::table('products')->where('company_id', $this->company())->whereNull('category_id')->count()],
-            ['check' => 'Products without a brand', 'value' => DB::table('products')->where('company_id', $this->company())->whereNull('brand_id')->count()],
-            ['check' => 'Customers without a region', 'value' => DB::table('customers')->where('company_id', $this->company())->whereNull('region_id')->count()],
-            ['check' => 'Rejected rows in imports (last 30 days)', 'value' => (int) DB::table('import_batches')->where('company_id', $this->company())->where('created_at', '>=', now()->subDays(30))->sum('invalid_rows')],
-            ['check' => 'Imports waiting for confirmation', 'value' => DB::table('import_batches')->where('company_id', $this->company())->where('status', 'staged')->count()],
-            ['check' => 'Corrections awaiting approval', 'value' => DB::table('sales_adjustments')->where('company_id', $this->company())->where('status', 'pending')->count()],
-        ];
-    }
-
-    /** Flatten any result into headings + rows for export. */
-    private function table(array $result): array
-    {
-        return match ($result['kind']) {
-            'targets' => [['Target', 'Metric', 'From', 'To', 'Target', 'Actual', 'Achievement %', 'Variance', 'Remaining', 'Forecast', 'Status'],
-                collect($result['rows'])->map(fn ($r) => [$r['name'], $r['metric'], $r['start_date'], $r['end_date'], $r['performance']['target'], $r['performance']['actual'],
-                    $r['performance']['achievement'], $r['performance']['variance'], $r['performance']['remaining'], $r['performance']['forecast'], $r['performance']['status']])->all()],
-            'forecast' => [['Month', 'Actual', 'Forecast', 'Low', 'High', 'Method'],
-                collect($result['months'])->map(fn ($m) => [$m['month'], $m['actual'], $m['forecast'], $m['low'], $m['high'], $m['method']])->all()],
-            'imports' => [['File', 'Source', 'Status', 'Rows', 'Valid', 'Invalid', 'Duplicates', 'Added', 'Net value', 'Source net value', 'From', 'To'],
-                collect($result['rows'])->map(fn ($b) => [$b->file_name, $b->source, $b->status, $b->total_rows, $b->valid_rows, $b->invalid_rows, $b->duplicate_rows, $b->inserted_rows,
-                    $b->totals['net_value'] ?? null, $b->source_totals['net_value'] ?? null, $b->period_from?->toDateString(), $b->period_to?->toDateString()])->all()],
-            'quality' => [['Check', 'Count'], collect($result['rows'])->map(fn ($r) => [$r['check'], $r['value']])->all()],
-            default => (function () use ($result) {
-                $first = $result['rows'][0] ?? null;
-                $dims = $first ? array_values(array_filter(array_keys($first), fn ($k) => isset(SalesAnalytics::DIMENSIONS[$k]))) : [];
-                $cols = array_merge($dims, ['value', 'share'], $first && array_key_exists('previous', $first) ? ['previous', 'change', 'growth'] : []);
-                $labels = array_map(fn ($c) => SalesAnalytics::DIMENSIONS[$c] ?? ['value' => 'Value', 'share' => 'Share %', 'previous' => 'Comparison', 'change' => 'Change', 'growth' => 'Growth %'][$c], $cols);
-
-                return [$labels, collect($result['rows'])->map(fn ($r) => array_map(fn ($c) => $r[$c] ?? null, $cols))->all()];
-            })(),
-        };
+        return app(ReportExporter::class)->result($report, $f, $request->user());
     }
 
     private function company(): int

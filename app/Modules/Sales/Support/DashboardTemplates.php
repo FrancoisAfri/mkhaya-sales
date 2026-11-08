@@ -83,13 +83,16 @@ final class DashboardTemplates
             $w('waterfall', 'Sales bridge: last year → this year by customer', ['kind' => 'waterfall', 'dimension' => 'customer', 'period' => 'ytd', 'top' => 10], 2, 0, 10, 8),
             $w('diverging_bar', 'Product growth vs last year', ['kind' => 'category', 'measures' => ['growth_pct'], 'dimension' => 'product', 'period' => 'ytd', 'top' => 15], 0, 8, 6, 9),
             $w('waterfall', 'Contribution to growth by category', ['kind' => 'waterfall', 'dimension' => 'category', 'period' => 'ytd', 'top' => 8], 6, 8, 6, 9),
+            $w('key_influencers', 'What explains the change on last year', ['kind' => 'influencers', 'period' => 'ytd'], 0, 17, 6, 10),
+            $w('decomp_tree', 'Break down sales', ['kind' => 'decomposition', 'measures' => ['net_value'], 'dimension' => 'region', 'period' => 'ytd'], 6, 17, 6, 10),
+            $w('network', 'Who buys what: customers and categories', ['kind' => 'network', 'measures' => ['net_value'], 'dimension' => 'customer', 'series' => 'category', 'period' => 'ytd', 'top' => 15], 0, 27, 12, 10),
         ];
 
         $regional = [
             $w('column_clustered', 'Sales by region vs last year', ['kind' => 'category', 'measures' => ['net_value', 'last_year'], 'dimension' => 'region', 'period' => 'ytd'], 0, 0, 6, 8),
             $w('radar', 'Regional profile', ['kind' => 'category', 'measures' => ['net_value', 'quantity', 'active_customers'], 'dimension' => 'region', 'period' => 'ytd'], 6, 0, 6, 8),
             $w('heatmap_matrix', 'Region × category', ['kind' => 'matrix', 'measures' => ['net_value'], 'dimension' => 'region', 'series' => 'category', 'period' => 'ytd'], 0, 8, 12, 8),
-            $w('map_placeholder', 'Map', ['kind' => 'category', 'measures' => ['net_value'], 'dimension' => 'region', 'period' => 'ytd'], 0, 16, 12, 5),
+            $w('map_regional', 'Sales by province', ['kind' => 'geo', 'period' => 'ytd'], 0, 16, 12, 9),
         ];
 
         $forecasting = [

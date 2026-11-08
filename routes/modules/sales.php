@@ -9,6 +9,7 @@ use App\Modules\Sales\Http\Controllers\LayoutController;
 use App\Modules\Sales\Http\Controllers\MailboxController;
 use App\Modules\Sales\Http\Controllers\MasterDataController;
 use App\Modules\Sales\Http\Controllers\ReportController;
+use App\Modules\Sales\Http\Controllers\ReportScheduleController;
 use App\Modules\Sales\Http\Controllers\SalesRecordController;
 use App\Modules\Sales\Http\Controllers\TargetController;
 use Illuminate\Support\Facades\Route;
@@ -71,6 +72,11 @@ Route::prefix('sales')->name('sales.')->middleware(\App\Modules\Sales\Http\Middl
     Route::get('reports/export/{format}', [ReportController::class, 'export'])->middleware('throttle:30,1')->name('reports.export');
     Route::post('reports/saved', [ReportController::class, 'save'])->name('reports.save');
     Route::delete('reports/saved/{id}', [ReportController::class, 'destroy'])->whereNumber('id')->name('reports.saved.destroy');
+    Route::get('reports/schedules', [ReportScheduleController::class, 'index'])->name('reports.schedules');
+    Route::post('reports/schedules', [ReportScheduleController::class, 'store'])->name('reports.schedules.store');
+    Route::put('reports/schedules/{id}', [ReportScheduleController::class, 'update'])->whereNumber('id')->name('reports.schedules.update');
+    Route::delete('reports/schedules/{id}', [ReportScheduleController::class, 'destroy'])->whereNumber('id')->name('reports.schedules.destroy');
+    Route::post('reports/schedules/{id}/send', [ReportScheduleController::class, 'send'])->whereNumber('id')->middleware('throttle:10,1')->name('reports.schedules.send');
 
     // Targets and the approvals matrix (phase 7)
     Route::get('targets', [TargetController::class, 'index'])->name('targets.index');

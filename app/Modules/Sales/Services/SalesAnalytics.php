@@ -18,6 +18,7 @@ class SalesAnalytics
         'customer' => 'Customer', 'product' => 'Product', 'category' => 'Product category', 'brand' => 'Brand',
         'customer_group' => 'Customer group', 'region' => 'Region', 'sales_team' => 'Sales team',
         'salesperson' => 'Salesperson', 'business_unit' => 'Business unit', 'distribution_centre' => 'Distribution centre',
+        'province' => 'Province', 'city' => 'City / town',
         'day' => 'Day', 'week' => 'Week', 'month' => 'Month', 'quarter' => 'Quarter', 'year' => 'Year',
     ];
 
@@ -201,6 +202,8 @@ class SalesAnalytics
             case 'salesperson': $join('salespeople', 'dsp', 's.salesperson_id'); return ['s.salesperson_id', "coalesce(dsp.name, '(no salesperson)')"];
             case 'business_unit': $join('business_units', 'dbu', 's.business_unit_id'); return ['s.business_unit_id', "coalesce(dbu.name, '(no business unit)')"];
             case 'distribution_centre': $join('distribution_centres', 'ddc', 's.distribution_centre_id'); return ['s.distribution_centre_id', "coalesce(ddc.name, '(no DC)')"];
+            case 'province': $join('customers', 'dc', 's.customer_id'); return ["coalesce(dc.province, '(none)')", "coalesce(dc.province, '(no province)')"];
+            case 'city': $join('customers', 'dc', 's.customer_id'); return ["coalesce(dc.city, '(none)')", "coalesce(dc.city, '(no city)')"];
             case 'day': return ["{$date}::date", "to_char({$date}, 'YYYY-MM-DD')"];
             case 'week': return ["date_trunc('week', {$date})::date", "to_char(date_trunc('week', {$date}), 'IYYY-\"W\"IW')"];
             case 'month': return ["date_trunc('month', {$date})::date", "to_char({$date}, 'YYYY-MM')"];

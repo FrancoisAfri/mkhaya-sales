@@ -66,6 +66,8 @@ export const VISUALS: Visual[] = [
   v('scatter', 'Scatter', 'Relationships', 'scatter', 'tabler-chart-dots-2', { dimension: 'customer' }),
   v('bubble', 'Bubble', 'Relationships', 'scatter', 'tabler-chart-bubble', { dimension: 'customer' }),
   v('quadrant', 'Quadrant (size vs growth)', 'Relationships', 'scatter', 'tabler-grid-dots', { dimension: 'customer' }),
+  v('network', 'Network (who buys what)', 'Relationships', 'network', 'tabler-affiliate', { measures: ['net_value'], dimension: 'customer', series: 'category', top: 15 }),
+  v('chord', 'Chord diagram', 'Relationships', 'network', 'tabler-circles-relation', { measures: ['net_value'], dimension: 'customer_group', series: 'category', top: 10 }),
   v('radar', 'Radar', 'Relationships', 'category', 'tabler-chart-radar', { measures: ['net_value', 'quantity', 'active_customers'], dimension: 'region' }),
 
   v('histogram', 'Histogram', 'Distribution', 'histogram', 'tabler-chart-histogram', { dimension: 'customer' }),
@@ -82,6 +84,8 @@ export const VISUALS: Visual[] = [
   v('sankey', 'Sankey', 'Advanced', 'sankey', 'tabler-arrows-split', { measures: ['net_value'], dimension: 'category', series: 'brand' }),
   v('cohort', 'Cohort retention', 'Advanced', 'cohort', 'tabler-users-group', {}),
   v('decomposition', 'Decomposition (drill table)', 'Advanced', 'decomposition', 'tabler-binary-tree', { measures: ['net_value'], dimension: 'category', top: 10 }),
+  v('decomp_tree', 'Decomposition tree (interactive)', 'Advanced', 'decomposition', 'tabler-hierarchy-3', { measures: ['net_value'], dimension: 'region' }, 'tree'),
+  v('key_influencers', 'Key influencers', 'Advanced', 'influencers', 'tabler-zoom-question', {}, 'influencers'),
 
   v('forecast_line', 'Forecast with range', 'Forecast', 'forecast', 'tabler-crystal-ball', {}),
 
@@ -90,7 +94,9 @@ export const VISUALS: Visual[] = [
   v('text_box', 'Text box', 'Text', 'none', 'tabler-typography', {}, 'text'),
   v('data_status', 'Data freshness & imports', 'Text', 'none', 'tabler-database', {}, 'status'),
 
-  v('map_placeholder', 'Maps (need customer locations)', 'Maps', 'category', 'tabler-map', { dimension: 'region' }, 'map'),
+  v('map_points', 'Customer map (points)', 'Maps', 'geo', 'tabler-map-pin', {}, 'geo'),
+  v('map_bubble', 'Bubble map (sales by province)', 'Maps', 'geo', 'tabler-map-2', {}, 'geo'),
+  v('map_regional', 'Regional performance map', 'Maps', 'geo', 'tabler-map', {}, 'geo'),
 ]
 
 export const visual = (key: string) => VISUALS.find(x => x.key === key) ?? VISUALS[0]
@@ -254,6 +260,27 @@ export function buildOption(type: string, d: any): any {
           { name: 'Likely range', type: 'line', stack: 'band', data: band, lineStyle: { opacity: 0 }, symbol: 'none', areaStyle: { color: 'rgba(228,168,0,.15)' }, tooltip: { show: false } },
           { name: 'Target', type: 'line', step: 'middle', data: tgt, lineStyle: { color: GOOD, type: 'dotted', width: 2 }, symbol: 'none' }] })
     }
+    case 'network': case 'chord': {
+      const chord = type === 'chord'
+      const nodes = d.nodes ?? [], links = d.links ?? []
+      const maxN = Math.max(1, ...nodes.map((n: any) => n.value)), maxL = Math.max(1, ...links.map((l: any) => l.value))
+      // Chord: one side then the other around the circle. Network: two columns (left side → right side),
+      // which stays readable even when every customer buys every category.
+      const ordered = [...nodes].sort((a: any, b: any) => a.category - b.category || b.value - a.value)
+      const counts = [ordered.filter((n: any) => n.category === 0).length, ordered.filter((n: any) => n.category === 1).length]
+      const idx = [0, 0]
+      const place = (n: any) => { const c = n.category, i = idx[c]++; return chord ? {} : { x: c ? 100 : 0, y: (i + 0.5) * (100 / Math.max(1, counts[c])) } }
+      return { color: [PALETTE[0], PALETTE[1]],
+        tooltip: { confine: true, backgroundColor: '#fff', borderColor: '#ECECF1', textStyle: { color: '#1F1F29', fontSize: 12 },
+          formatter: (p: any) => p.dataType === 'edge' ? `${nodes.find((n: any) => n.id === p.data.source)?.name} → ${nodes.find((n: any) => n.id === p.data.target)?.name}<br><b>${fmt(p.data.value, 'currency', false)}</b>` : `${d.sides?.[p.data.category] ?? ''}: <b>${p.data.name}</b><br>${fmt(p.data.value, 'currency', false)}` },
+        legend: { top: 0, icon: 'circle', itemWidth: 8, data: d.sides ?? [], textStyle: { color: '#5B5B6E' } },
+        series: [{ type: 'graph', layout: chord ? 'circular' : 'none', roam: false, top: 34, bottom: 12, left: chord ? 10 : 170, right: chord ? 10 : 150,
+          circular: { rotateLabel: true }, categories: (d.sides ?? []).map((name: string) => ({ name })),
+          data: ordered.map((n: any) => ({ ...n, ...place(n), symbolSize: (chord ? 8 : 6) + Math.sqrt(n.value / maxN) * (chord ? 22 : 18),
+            label: { show: true, position: chord ? 'right' : n.category ? 'right' : 'left', fontSize: n.category === 1 ? 11 : 10, fontWeight: n.category === 1 ? 700 : 400, color: '#3A3A4A', width: 150, overflow: 'truncate' } })),
+          links: links.map((l: any) => ({ ...l, lineStyle: { width: 0.6 + (l.value / maxL) * (chord ? 7 : 6), opacity: chord ? 0.35 : 0.3, curveness: chord ? 0.3 : 0.15, color: 'source' } })),
+          emphasis: { focus: 'adjacency', lineStyle: { opacity: 0.85 } }, labelLayout: { hideOverlap: true } }] }
+    }
     case 'small_multiples_bar': case 'bar_stacked': case 'bar_100': {
       const pct = type === 'bar_100'
       const cols = d.columns ?? [], rows = d.rows ?? []
@@ -264,4 +291,30 @@ export function buildOption(type: string, d: any): any {
     }
   }
   return base({ xAxis: catAxis(d.categories ?? []), yAxis: valAxis(fm(first)), series: series.map((x: any) => ({ name: x.name, type: 'bar', data: x.data })) })
+}
+
+// ── page charts (outside the dashboard grid) — same look as every BI visual ──────────────────
+
+/** This period against the same period last year, as a line pair. */
+export function trendCompare(labels: string[], current: number[], previous: number[]) {
+  return base({ tooltip: { ...base().tooltip, ...tip('currency') }, xAxis: catAxis(labels, { boundaryGap: false }), yAxis: valAxis('currency'),
+    series: [{ name: 'This period', type: 'line', smooth: true, symbol: 'none', data: current, lineStyle: { width: 2.5 }, areaStyle: { opacity: 0.12 } },
+      { name: 'Same period last year', type: 'line', smooth: true, symbol: 'none', data: previous, lineStyle: { width: 2, type: 'dashed' }, itemStyle: { color: '#6A0DAD' }, emphasis: { disabled: true } }] })
+}
+
+/** A Top-N ranking as horizontal bars, largest at the top. */
+export function rankedBars(names: string[], values: number[], color = PALETTE[0], format = 'currency') {
+  return base({ legend: { show: false }, grid: { left: 8, right: 24, top: 8, bottom: 8, containLabel: true }, tooltip: { ...base().tooltip, ...tip(format) },
+    xAxis: valAxis(format), yAxis: catAxis([...names].reverse(), { axisLabel: { width: 140, overflow: 'truncate', color: '#45455A', fontSize: 11 } }),
+    series: [{ type: 'bar', barMaxWidth: 18, data: [...values].reverse(), itemStyle: { color, borderRadius: [0, 6, 6, 0] } }] })
+}
+
+/** Actual months as columns, forecast as a dashed line with its likely range. */
+export function forecastCombo(months: string[], actual: (number | null)[], forecast: (number | null)[], low: (number | null)[], high: (number | null)[]) {
+  return base({ legend: { ...base().legend, data: ['Actual', 'Forecast (estimate)', 'Likely range'] }, tooltip: { ...base().tooltip, ...tip('currency') },
+    xAxis: catAxis(months), yAxis: valAxis('currency'),
+    series: [{ name: 'Actual', type: 'bar', barMaxWidth: 26, data: actual, itemStyle: { borderRadius: [6, 6, 0, 0] } },
+      { name: 'Forecast (estimate)', type: 'line', data: forecast, lineStyle: { type: 'dashed', width: 2.5 }, itemStyle: { color: AMBER }, symbolSize: 6 },
+      { name: 'low', type: 'line', stack: 'band', data: low, lineStyle: { opacity: 0 }, symbol: 'none', tooltip: { show: false } },
+      { name: 'Likely range', type: 'line', stack: 'band', data: high.map((h, i) => (h === null || low[i] === null ? null : h - (low[i] as number))), lineStyle: { opacity: 0 }, symbol: 'none', areaStyle: { color: 'rgba(228,168,0,.15)' }, tooltip: { show: false } }] })
 }

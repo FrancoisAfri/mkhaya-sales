@@ -4,6 +4,9 @@ import * as echarts from 'echarts'
 import VChart from 'vue-echarts'
 import { computed, onMounted, ref, watch } from 'vue'
 import { buildOption, fmt, GOOD, AMBER, BAD, visual } from './visuals'
+import GeoMap from './GeoMap.vue'
+import Influencers from './Influencers.vue'
+import DecompTree from './DecompTree.vue'
 
 const props = defineProps<{ widget: any; filters: Record<string, any>; editing?: boolean }>()
 const emit = defineEmits<{ filter: [{ dimension: string; key: any; label: string }]; edit: []; remove: []; duplicate: [] }>()
@@ -20,13 +23,13 @@ const textValue = computed(() => props.widget.config?.text ?? '')
 const special = computed(() => v.value.special)
 
 async function load() {
-  if (special.value === 'text' || special.value === 'map') return
+  if (special.value === 'text' || special.value === 'tree') return
   loading.value = true; error.value = ''
   try {
     if (special.value === 'status' || special.value === 'targets') {
       data.value = (await axios.get('/sales/bi/status', { params: { filters: props.filters } })).data
     } else {
-      const config = { kind: v.value.kind, ...v.value.defaults, ...(props.widget.config ?? {}) }
+      const config = { ...v.value.defaults, ...(props.widget.config ?? {}), kind: v.value.kind }
       data.value = (await axios.post('/sales/bi/query', { config, filters: props.filters })).data
     }
   } catch (e: any) { error.value = e.response?.data?.message ?? 'Could not load this visual.' } finally { loading.value = false }
@@ -34,11 +37,14 @@ async function load() {
 onMounted(load)
 watch(() => [props.filters, props.widget.config, props.widget.type], load, { deep: true })
 
-const option = computed(() => data.value && !['kpi', 'table', 'narrative', 'decomposition', 'none'].includes(v.value.kind) && !['matrix_table', 'variance_table', 'ranking_table'].includes(props.widget.type) ? buildOption(props.widget.type, data.value) : null)
+const option = computed(() => data.value && !['kpi', 'table', 'narrative', 'decomposition', 'none', 'geo', 'influencers'].includes(v.value.kind) && !['matrix_table', 'variance_table', 'ranking_table'].includes(props.widget.type) ? buildOption(props.widget.type, data.value) : null)
 const isEmpty = computed(() => {
   const d = data.value
   if (!d) return false
   if (d.series) return !d.series.some((s: any) => s.data?.some((x: any) => x))
+  if (d.nodes) return !d.links?.length
+  if (d.regions) return !d.regions.length
+  if (d.decline) return !d.decline.length && !d.growth.length
   if (d.points) return !d.points.length
   if (d.tree) return !d.tree.length
   if (d.cells) return !d.cells.length
@@ -66,9 +72,13 @@ const gaugeOption = computed(() => ({ series: [{ type: 'gauge', startAngle: 210,
   detail: { valueAnimation: true, offsetCenter: [0, '2%'], fontSize: 22, fontWeight: 700, color: '#1F1F29', formatter: (x: number) => x.toFixed(1) + '%' }, data: [{ value: +ach.value.toFixed(1), name: statusText(ach.value) }] }] }))
 
 // ── Interactions ──
-const filterable = ['customer', 'product', 'category', 'brand', 'region', 'customer_group', 'sales_team', 'salesperson', 'business_unit', 'distribution_centre']
+const filterable = ['customer', 'product', 'category', 'brand', 'region', 'customer_group', 'sales_team', 'salesperson', 'business_unit', 'distribution_centre', 'province', 'city']
 function onClick(p: any) {
   const d = data.value
+  if (d?.nodes) {
+    if (p.dataType === 'node' && filterable.includes(d.dimensions[p.data.category])) emit('filter', { dimension: d.dimensions[p.data.category], key: p.data.key, label: p.data.name })
+    return
+  }
   const dim = d?.dimension ?? props.widget.config?.dimension
   if (!dim || !filterable.includes(dim) || !d?.keys) return
   const key = d.keys[p.dataIndex !== undefined ? (props.widget.type.startsWith('bar') || props.widget.type === 'lollipop' || props.widget.type === 'diverging_bar' ? d.keys.length - 1 - p.dataIndex : p.dataIndex) : -1]
@@ -123,7 +133,7 @@ const heat = (val: number, max: number) => `rgba(106,13,173,${Math.min(0.85, 0.0
 
     <div class="bi-card__body">
       <div v-if="error" class="bi-empty"><VIcon icon="tabler-alert-circle" color="error" />{{ error }}</div>
-      <div v-else-if="special === 'map'" class="bi-empty"><VIcon icon="tabler-map-pin-off" size="28" /><div><strong>Maps need customer locations.</strong><br>Add latitude/longitude or province to customers (a custom column in the customer import works) and this map will plot them.</div></div>
+      <DecompTree v-else-if="special === 'tree'" :widget="widget" :filters="filters" />
       <div v-else-if="special === 'text'" class="bi-text">{{ textValue || 'Add your text in the visual settings.' }}</div>
       <div v-else-if="!data && loading" class="bi-skeleton" />
       <template v-else-if="data">
@@ -161,6 +171,13 @@ const heat = (val: number, max: number) => `rgba(106,13,173,${Math.min(0.85, 0.0
             <div v-if="widget.type === 'kpi_sparkline'" class="bi-spark"><VChart :option="sparkOption" autoresize /></div>
           </div>
         </template>
+
+        <!-- Maps & influencers -->
+        <template v-else-if="special === 'geo'">
+          <div v-if="!data.located" class="bi-empty"><VIcon icon="tabler-map-pin-off" size="28" /><div><strong>No customer has a location yet.</strong><br>Add latitude and longitude (or at least a province) to customers — in Master data or with the customer import — and this map plots them.</div></div>
+          <GeoMap v-else :data="data" :type="widget.type" @filter="e => emit('filter', e)" />
+        </template>
+        <Influencers v-else-if="special === 'influencers'" :data="data" @filter="e => emit('filter', e)" />
 
         <!-- Text -->
         <div v-else-if="special === 'ai'" class="bi-text">
