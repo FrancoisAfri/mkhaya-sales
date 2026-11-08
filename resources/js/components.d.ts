@@ -40,6 +40,7 @@ declare module 'vue' {
     CustomRadiosWithImage: typeof import('./@core/components/app-form-elements/CustomRadiosWithImage.vue')['default']
     DialogCloseBtn: typeof import('./@core/components/DialogCloseBtn.vue')['default']
     DropZone: typeof import('./@core/components/DropZone.vue')['default']
+    FilterBar: typeof import('./Components/Sales/FilterBar.vue')['default']
     HorizontalNav: typeof import('./@layouts/components/HorizontalNav.vue')['default']
     HorizontalNavGroup: typeof import('./@layouts/components/HorizontalNavGroup.vue')['default']
     HorizontalNavLayout: typeof import('./@layouts/components/HorizontalNavLayout.vue')['default']
