@@ -31,6 +31,8 @@ class Target extends SalesModel
     public function getRouteKeyName(): string { return 'uuid'; }
     public function creator() { return $this->belongsTo(\App\Core\User\Models\User::class, 'created_by'); }
     public function approvals() { return $this->hasMany(TargetApproval::class)->orderBy('decided_at'); }
+    public function children() { return $this->hasMany(self::class, 'parent_id')->orderBy('name'); }
+    public function parent() { return $this->belongsTo(self::class, 'parent_id'); }
     public function revisions() { return $this->hasMany(TargetRevision::class)->orderBy('created_at'); }
 
     /** Lifecycle as the SRS names it (§11.6): approved targets are Active inside their period. */

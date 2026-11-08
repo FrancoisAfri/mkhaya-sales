@@ -1,7 +1,17 @@
 <script setup lang="ts">
 import { router, useForm } from '@inertiajs/vue3'
 
-const props = defineProps<{ target: any; row: any; steps: { step: number; approvers: string[] }[]; canApprove: boolean; metrics: Record<string, string>; dimensions: Record<string, string>; options: Record<string, any[]> }>()
+import { computed } from 'vue'
+
+const props = defineProps<{ target: any; row: any; steps: { step: number; approvers: string[] }[]; canApprove: boolean; metrics: Record<string, string>; dimensions: Record<string, string>; options: Record<string, any[]>
+  children: any[]; reconciliation: { children: number; allocated: number; parent: number; difference: number; balanced: boolean } | null; canAllocate: boolean }>()
+const optKey: Record<string, string> = { customer_id: 'customers', customer_group_id: 'customer_groups', product_id: 'products', category_id: 'categories', brand_id: 'brands',
+  region_id: 'regions', business_unit_id: 'business_units', sales_team_id: 'sales_teams', salesperson_id: 'salespeople', distribution_centre_id: 'distribution_centres' }
+const alloc = useForm({ dimension: 'region_id', method: 'historical', members: [] as number[], given: {} as Record<number, number | null> })
+const allocDims = computed(() => Object.entries(props.dimensions).filter(([k]) => !(k in (props.target.dimensions ?? {}))).map(([v, t]) => ({ value: v, title: t })))
+const memberItems = computed(() => props.options[optKey[alloc.dimension]] ?? [])
+const givenSum = computed(() => alloc.members.reduce((a, id) => a + Number(alloc.given[id] ?? 0), 0))
+function allocateAll() { alloc.members = memberItems.value.map((o: any) => o.value) }
 const t = props.target, p = props.row.performance
 const isMoney = t.metric.includes('value')
 const fmt = (n: any) => n === null || n === undefined ? '—' : (isMoney ? 'R ' : '') + Number(n).toLocaleString('en-ZA', { maximumFractionDigits: 2 })
@@ -66,6 +76,38 @@ function send(decision: string) { decide.decision = decision; decide.post(`/sale
           </tbody></VTable>
         </VCard>
         <VBtn v-if="t.status !== 'archived'" variant="text" color="error" class="mt-3" @click="router.post(`/sales/targets/${t.uuid}/archive`)">Archive target</VBtn>
+      </VCol>
+    </VRow>
+
+    <VRow class="mt-2">
+      <VCol cols="12" md="5">
+        <VCard v-if="canAllocate" elevation="0" border rounded="lg" title="Allocate to child targets" subtitle="Children are created as drafts and always add up to this target">
+          <VCardText class="d-flex flex-column gap-3">
+            <VAlert v-if="target.parent" type="info" variant="tonal" density="compact">Part of <a :href="`/sales/targets/${target.parent.uuid}`">{{ target.parent.name }}</a></VAlert>
+            <VSelect v-model="alloc.dimension" :items="allocDims" label="Split by" density="compact" variant="outlined" hide-details @update:model-value="alloc.members = []; alloc.given = {}" />
+            <VSelect v-model="alloc.method" :items="[{ value: 'historical', title: 'Last year\'s sales mix (same period)' }, { value: 'equal', title: 'Equal shares' }, { value: 'percentage', title: 'Percentages I enter' }, { value: 'manual', title: 'Values I enter' }]" label="Method" density="compact" variant="outlined" hide-details />
+            <VAutocomplete v-model="alloc.members" :items="memberItems" label="Allocate to" multiple chips closable-chips density="compact" variant="outlined" hide-details>
+              <template #append><VBtn size="x-small" variant="text" @click="allocateAll">All</VBtn></template>
+            </VAutocomplete>
+            <template v-if="['percentage', 'manual'].includes(alloc.method)">
+              <VTextField v-for="id in alloc.members" :key="id" v-model.number="alloc.given[id]" type="number" :label="memberItems.find((o: any) => o.value === id)?.title + (alloc.method === 'percentage' ? ' (%)' : '')" density="compact" variant="outlined" hide-details />
+              <div class="text-caption" :class="Math.abs(givenSum - (alloc.method === 'percentage' ? 100 : t.target_value)) < 0.01 ? 'text-success' : 'text-error'">Total {{ givenSum }} of {{ alloc.method === 'percentage' ? 100 : fmt(t.target_value) }}</div>
+            </template>
+            <VAlert v-if="$page.props.errors?.target" type="error" variant="tonal" density="compact">{{ $page.props.errors.target }}</VAlert>
+            <VBtn color="primary" :disabled="!alloc.members.length" :loading="alloc.processing" @click="alloc.post(`/sales/targets/${t.uuid}/allocate`, { preserveScroll: true })">Create child targets</VBtn>
+          </VCardText>
+        </VCard>
+      </VCol>
+      <VCol cols="12" md="7">
+        <VCard v-if="children.length" elevation="0" border rounded="lg" title="Child targets">
+          <VCardText v-if="reconciliation" class="pb-0">
+            <VChip :color="reconciliation.balanced ? 'success' : 'error'" variant="tonal" size="small">{{ reconciliation.balanced ? 'Adds up to the parent' : `Off by ${fmt(reconciliation.difference)}` }} · {{ fmt(reconciliation.allocated) }} allocated</VChip>
+          </VCardText>
+          <VTable density="compact"><thead><tr><th>Child</th><th class="text-end">Target</th><th class="text-end">Actual</th><th class="text-end">Achievement</th><th>Status</th></tr></thead><tbody>
+            <tr v-for="c in children" :key="c.uuid"><td><a :href="`/sales/targets/${c.uuid}`">{{ c.name }}</a></td><td class="text-end">{{ fmt(c.performance.target) }}</td><td class="text-end">{{ fmt(c.performance.actual) }}</td>
+              <td class="text-end">{{ c.performance.achievement ?? '—' }}%</td><td><VChip size="x-small" variant="tonal">{{ c.lifecycle }}</VChip></td></tr>
+          </tbody></VTable>
+        </VCard>
       </VCol>
     </VRow>
   </VContainer>

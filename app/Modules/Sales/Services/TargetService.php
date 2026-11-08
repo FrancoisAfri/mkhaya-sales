@@ -198,6 +198,103 @@ class TargetService
         });
     }
 
+    // ── Allocation (§11.5) ──────────────────────────────────────────────────────────────────────
+
+    /** dimension key → [SalesAnalytics dimension, master-data option key] */
+    public const ALLOCATE_BY = [
+        'region_id' => 'region', 'customer_id' => 'customer', 'customer_group_id' => 'customer_group', 'product_id' => 'product',
+        'category_id' => 'category', 'brand_id' => 'brand', 'sales_team_id' => 'sales_team', 'salesperson_id' => 'salesperson',
+        'business_unit_id' => 'business_unit', 'distribution_centre_id' => 'distribution_centre',
+    ];
+
+    /**
+     * Split a target into child drafts, one per member of a dimension. Shares come from the method:
+     * equal, percentage (given), historical (same period last year's sales mix within the parent's
+     * slice) or manual (given values). Children always add up exactly to the parent — rounding goes
+     * to the largest child. Each child is approved on its own through the matrix.
+     *
+     * @param  array<int, float>  $given  member id → percentage or value (percentage / manual)
+     * @return Collection<int, Target>
+     */
+    public function allocate(Target $parent, User $by, string $dimension, string $method, array $members, array $given = []): Collection
+    {
+        if (! isset(self::ALLOCATE_BY[$dimension])) {
+            throw new RuntimeException('Targets cannot be allocated by that dimension.');
+        }
+        if (isset(($parent->dimensions ?? [])[$dimension])) {
+            throw new RuntimeException('The target is already limited to one of those.');
+        }
+        $members = array_values(array_unique(array_map('intval', $members)));
+        if (! $members) {
+            throw new RuntimeException('Choose at least one to allocate to.');
+        }
+
+        $weights = match ($method) {
+            'equal' => array_fill_keys($members, 1.0),
+            'percentage', 'manual' => array_map('floatval', array_intersect_key($given, array_flip($members))) + array_fill_keys($members, 0.0),
+            'historical' => $this->historicalWeights($parent, $by, $dimension, $members),
+            default => throw new RuntimeException('Unknown allocation method.'),
+        };
+        if ($method === 'percentage' && abs(array_sum($weights) - 100) > 0.01) {
+            throw new RuntimeException('Percentages must add up to 100 (they add up to ' . round(array_sum($weights), 2) . ').');
+        }
+        if ($method === 'manual' && abs(array_sum($weights) - $parent->target_value) > 0.01) {
+            throw new RuntimeException('Values must add up to the parent target of ' . number_format($parent->target_value, 2) . '.');
+        }
+        $total = array_sum($weights);
+        if ($total <= 0) {
+            throw new RuntimeException($method === 'historical' ? 'There were no sales for these last year to weight by — use equal or percentage.' : 'Nothing to allocate.');
+        }
+
+        $values = [];
+        foreach ($weights as $id => $w) {
+            $values[$id] = round($parent->target_value * $w / $total, $parent->metric === 'quantity' || $parent->metric === 'active_customers' ? 0 : 2);
+        }
+        $largest = array_search(max($values), $values, true);
+        $values[$largest] = round($values[$largest] + ($parent->target_value - array_sum($values)), 2);
+
+        $labels = collect(\App\Modules\Sales\Support\MasterData::options(str_replace('_', '-', \Illuminate\Support\Str::plural(self::ALLOCATE_BY[$dimension]))))->pluck('title', 'value');
+
+        return DB::transaction(function () use ($parent, $by, $dimension, $method, $values, $labels) {
+            Target::where('parent_id', $parent->id)->whereIn('status', ['draft', 'rejected'])->delete(); // re-allocating replaces unapproved children
+
+            return collect($values)->map(fn ($v, $id) => Target::create([
+                'parent_id' => $parent->id, 'allocation_method' => $method,
+                'name' => $parent->name . ' — ' . ($labels[$id] ?? "#{$id}"),
+                'metric' => $parent->metric, 'method' => $parent->method, 'period_type' => $parent->period_type,
+                'start_date' => $parent->start_date, 'end_date' => $parent->end_date, 'target_value' => $v,
+                'dimensions' => array_merge($parent->dimensions ?? [], [$dimension => $id]),
+                'status' => 'draft', 'created_by' => $by->id,
+            ]))->values();
+        });
+    }
+
+    /** Children against the parent: do they still add up? */
+    public function reconciliation(Target $parent): ?array
+    {
+        $children = Target::where('parent_id', $parent->id)->where('status', '!=', 'archived')->get();
+        if ($children->isEmpty()) {
+            return null;
+        }
+        $sum = round($children->sum('target_value'), 2);
+
+        return ['children' => $children->count(), 'allocated' => $sum, 'parent' => $parent->target_value,
+            'difference' => round($parent->target_value - $sum, 2), 'balanced' => abs($parent->target_value - $sum) < 0.01];
+    }
+
+    private function historicalWeights(Target $parent, User $by, string $dimension, array $members): array
+    {
+        $dim = self::ALLOCATE_BY[$dimension];
+        $f = array_merge($parent->dimensions ?? [], [
+            'from' => CarbonImmutable::parse($parent->start_date)->subYear()->toDateString(),
+            'to' => CarbonImmutable::parse($parent->end_date)->subYear()->toDateString(),
+        ]);
+        $measure = in_array($parent->metric, ['net_value', 'gross_value', 'quantity'], true) ? $parent->metric : 'net_value';
+        $rows = collect(app(SalesAnalytics::class)->grouped($f, $by, [$dim], $measure, 'none', 10000)['rows'])->keyBy("{$dim}_id");
+
+        return collect($members)->mapWithKeys(fn ($id) => [$id => max(0.0, (float) ($rows[$id]['value'] ?? 0))])->all();
+    }
+
     /** Targets waiting for this user's decision. */
     public function inbox(User $user): Collection
     {

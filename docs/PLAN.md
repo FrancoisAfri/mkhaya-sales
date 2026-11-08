@@ -50,6 +50,6 @@ product & customer master files, historical sales files, target examples, financ
 
 ## Still open
 - Real Vector inputs (§33): sample daily report → build its layout; mailbox details (Entra app or IMAP).
-- Release 2/3 items not built: target allocation (parent→child), formula/composite targets, target imports, anomaly detection,
+- Release 2 done: target allocation (equal / % / last-year mix / manual; children always sum to parent). Not built: formula/composite targets, target imports, anomaly detection,
   what-if, change-request (R1,250/h) workflow screens, backup/restore runbook, POPIA document, load testing.
 - Charts use ApexCharts (already in the stack) instead of ECharts — swap if ECharts is contractual.

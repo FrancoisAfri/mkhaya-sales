@@ -48,14 +48,18 @@ class TargetController extends Controller
     public function show(Request $request, Target $target): Response
     {
         abort_unless($request->user()->can('dashboards.view') || $request->user()->can('targets.create'), 403);
-        $target->load(['approvals.decider:id,email', 'revisions.reviser:id,email', 'creator:id,email']);
+        $target->load(['approvals.decider:id,email', 'revisions.reviser:id,email', 'creator:id,email', 'parent:id,uuid,name']);
 
         return Inertia::render('Modules/Sales/Targets/Show', [
             'target' => $target,
             'row' => $this->targets->row($target, $request->user()),
             'steps' => $this->targets->steps($target)->map(fn ($rules, $i) => ['step' => $i + 1, 'approvers' => $rules->map(fn ($r) => $this->describe($r))->all()]),
             'canApprove' => $this->targets->canApprove($request->user(), $target),
-            'metrics' => Target::METRICS, 'dimensions' => Target::DIMENSIONS, 'options' => $this->query->filterOptions(),
+            'children' => $target->children()->get()->map(fn (Target $c) => $this->targets->row($c, $request->user())),
+            'reconciliation' => $this->targets->reconciliation($target),
+            'canAllocate' => $request->user()->can('targets.create') && $target->status !== 'archived',
+            'metrics' => Target::METRICS, 'dimensions' => Target::DIMENSIONS, 'options' => $this->query->filterOptions()
+                + ['distribution_centres' => \App\Modules\Sales\Support\MasterData::options('distribution-centres')],
         ]);
     }
 
@@ -104,6 +108,22 @@ class TargetController extends Controller
 
         return $this->attempt(fn () => $this->targets->revise($target, $request->user(), (float) $data['target_value'], $data['reason'], isset($data['target_value_max']) ? (float) $data['target_value_max'] : null),
             'Revision submitted for approval; the previous value is kept in the history.');
+    }
+
+    public function allocate(Request $request, Target $target): RedirectResponse
+    {
+        abort_unless($request->user()->can('targets.create'), 403);
+        $data = $request->validate([
+            'dimension' => ['required', Rule::in(array_keys(TargetService::ALLOCATE_BY))],
+            'method' => ['required', Rule::in(['equal', 'percentage', 'historical', 'manual'])],
+            'members' => ['required', 'array', 'min:1', 'max:500'],
+            'members.*' => ['integer'],
+            'given' => ['nullable', 'array'],
+            'given.*' => ['nullable', 'numeric', 'min:0'],
+        ]);
+
+        return $this->attempt(fn () => $this->targets->allocate($target, $request->user(), $data['dimension'], $data['method'], $data['members'], $data['given'] ?? []),
+            'Child targets created as drafts — submit them for approval.');
     }
 
     public function archive(Request $request, Target $target): RedirectResponse

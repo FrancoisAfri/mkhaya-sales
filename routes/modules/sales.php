@@ -79,5 +79,6 @@ Route::prefix('sales')->name('sales.')->group(function () {
     Route::post('targets/{target}/submit', [TargetController::class, 'submit'])->name('targets.submit');
     Route::post('targets/{target}/decide', [TargetController::class, 'decide'])->name('targets.decide');
     Route::post('targets/{target}/revise', [TargetController::class, 'revise'])->name('targets.revise');
+    Route::post('targets/{target}/allocate', [TargetController::class, 'allocate'])->name('targets.allocate');
     Route::post('targets/{target}/archive', [TargetController::class, 'archive'])->name('targets.archive');
 });
