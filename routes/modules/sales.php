@@ -1,5 +1,6 @@
 <?php
 
+use App\Modules\Sales\Http\Controllers\BIController;
 use App\Modules\Sales\Http\Controllers\DashboardController;
 use App\Modules\Sales\Http\Controllers\ImportController;
 use App\Modules\Sales\Http\Controllers\InsightsController;
@@ -86,4 +87,15 @@ Route::prefix('sales')->name('sales.')->middleware(\App\Modules\Sales\Http\Middl
     Route::post('targets/{target}/revise', [TargetController::class, 'revise'])->name('targets.revise');
     Route::post('targets/{target}/allocate', [TargetController::class, 'allocate'])->name('targets.allocate');
     Route::post('targets/{target}/archive', [TargetController::class, 'archive'])->name('targets.archive');
+
+    // BI dashboards and builder
+    Route::get('bi', [BIController::class, 'index'])->name('bi.index');
+    Route::post('bi', [BIController::class, 'store'])->name('bi.store');
+    Route::post('bi/query', [BIController::class, 'query'])->middleware('throttle:600,1')->name('bi.query');
+    Route::get('bi/status', [BIController::class, 'status'])->name('bi.status');
+    Route::post('bi/measures', [BIController::class, 'saveMeasure'])->name('bi.measures');
+    Route::get('bi/{uuid}', [BIController::class, 'show'])->whereUuid('uuid')->name('bi.show');
+    Route::put('bi/{uuid}', [BIController::class, 'update'])->whereUuid('uuid')->name('bi.update');
+    Route::delete('bi/{uuid}', [BIController::class, 'destroy'])->whereUuid('uuid')->name('bi.destroy');
+    Route::post('bi/{uuid}/bookmarks', [BIController::class, 'saveBookmark'])->whereUuid('uuid')->name('bi.bookmarks');
 });

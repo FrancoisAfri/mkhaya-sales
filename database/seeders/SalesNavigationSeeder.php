@@ -14,7 +14,8 @@ use Illuminate\Support\Str;
 class SalesNavigationSeeder extends Seeder
 {
     public const MODULES = [
-        ['code' => 'sales_overview', 'name' => 'Overview', 'icon' => 'chart-pie', 'path' => '/sales/dashboard', 'ribbons' => [
+        ['code' => 'sales_overview', 'name' => 'Overview', 'icon' => 'chart-pie', 'path' => '/sales/bi', 'ribbons' => [
+            ['My dashboards', 'sales/bi'],
             ['Executive', 'sales/dashboard'],
             ['Customers', 'sales/dashboard/customers'],
             ['Products', 'sales/dashboard/products'],

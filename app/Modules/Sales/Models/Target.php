@@ -28,6 +28,7 @@ class Target extends SalesModel
     protected static function booted(): void
     {
         static::creating(fn (self $t) => $t->uuid ??= (string) Str::uuid());
+        static::saved(fn (self $t) => \App\Modules\Sales\Services\BI\BIQueryService::invalidate($t->company_id));
     }
 
     public function getRouteKeyName(): string { return 'uuid'; }

@@ -378,6 +378,7 @@ class ImportEngine
         }
 
         $batch->update($result + ['status' => 'committed', 'completed_at' => now()]);
+        \App\Modules\Sales\Services\BI\BIQueryService::invalidate($batch->company_id);
         activity('sales')->performedOn($batch)->causedBy($by)->withProperties($result + ['file' => $batch->file_name])->log('import committed');
 
         return $batch;

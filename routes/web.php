@@ -52,7 +52,9 @@ Route::middleware(['web'])->patch('/user/locale', function (\Illuminate\Http\Req
 // ── AUTHENTICATED ROUTES ────────────────────
 Route::middleware(['auth', 'auth.lock', 'check.banned', 'prevent-back-history', 'crud.permissions'])->group(function () {
 
-    Route::get('/', [DashbaordController::class, 'index'])->name('dashboard');
+    // Landing page: the user's BI dashboard (falls back to the platform home without a company).
+    Route::get('/', [\App\Modules\Sales\Http\Controllers\BIController::class, 'home'])->name('dashboard');
+    Route::get('/home', [DashbaordController::class, 'index'])->name('dashboard.legacy');
     Route::post('/logout', [AuthController::class, 'logout'])->name('auth.logout');
 
     // ── Notifications ──────────────────────────────────────────────────────

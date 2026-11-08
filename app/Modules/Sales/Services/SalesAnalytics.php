@@ -180,7 +180,7 @@ class SalesAnalytics
     }
 
     /** @return array{0: string, 1: string} SQL key expression and label expression */
-    private function dimension($q, string $d, int $shiftDays, int $shiftYears): array
+    public function dimension($q, string $d, int $shiftDays = 0, int $shiftYears = 0): array
     {
         $date = "(s.transaction_date + interval '{$shiftDays} day' + interval '{$shiftYears} year')";
         $join = function (string $table, string $alias, string $on) use ($q) {

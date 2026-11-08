@@ -71,5 +71,6 @@ declare module 'vue' {
     VerticalNavLayout: typeof import('./@layouts/components/VerticalNavLayout.vue')['default']
     VerticalNavLink: typeof import('./@layouts/components/VerticalNavLink.vue')['default']
     VerticalNavSectionTitle: typeof import('./@layouts/components/VerticalNavSectionTitle.vue')['default']
+    Visual: typeof import('./Components/BI/Visual.vue')['default']
   }
 }
