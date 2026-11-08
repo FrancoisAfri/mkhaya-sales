@@ -15,7 +15,6 @@ class EnforceCrudPermissions
      */
     private const EXEMPT_ROUTE_NAMES = [
         'auth.logout',
-        'reseller.demo.exit',
         'lock.session',
         'login.unlock',
         'lock.screen',
@@ -51,95 +50,9 @@ class EnforceCrudPermissions
      * and do not need an additional CRUD permission check.
      */
     private const EXEMPT_ROUTE_PREFIXES = [
-        'hr.leave.setup.',
-        'hr.leave.admin-cancel',
-        'hr.leave.payouts',
-        'hr.leave.my-payouts',
-        'hr.leave.manual-allocations.send-bulk-otp',
-        // Agent-to-agent collaboration — available to any Help Desk user (already
-        // gated by module access + per-thread participant checks in the controller).
-        'helpdesk.agent-chat.',
-        'helpdesk.agent-groups.',
-        // Project Management authorises every route through a policy (ProjectPolicy /
-        // TaskPolicy / EvidencePolicy) on top of module.active + module.tier, using its own
-        // pm.* permission set. The generic names this middleware derives ('view', 'create',
-        // 'delete', …) would have to be granted alongside them — and a bare 'delete'
-        // permission is actively dangerous, because Spatie's Gate::before grants any ability
-        // matching a held permission and would bypass those policies entirely.
-        'project-management.',
-        // Procurement Governance declares the permission it wants on every route
-        // (crud.permissions:procgov.plan.view, …) using its own §10 permission set. The names this
-        // middleware would otherwise derive are plural ('procgov.plans.view') and do not exist, so
-        // a user holding all thirty-one procurement permissions still got a 403 on almost every
-        // screen — only platform admins, who bypass this class entirely, could use the module.
-        // Those explicit declarations are still enforced; this entry only suppresses the guess.
-        'procgov.',
-        // SHEQ is the same shape as the two above: it declares its own permission set
-        // (sheq.incident.report, sheq.permit.approve, sheq.configure, …), checks it explicitly in
-        // every controller action with abort_unless, and sits behind module.active + module.tier.
-        // The names this middleware derives are plural and action-shaped ('sheq.forms.index',
-        // 'sheq.forms.view') and exist nowhere in the catalogue, so every screen in the module
-        // returned 403 to everyone except platform admins, who bypass this class. The module's own
-        // checks are untouched by this entry — it only suppresses the guess.
-        'sheq.',
-        // Hub landing pages are registered generically in routes/modules/hubs.php, whose own
-        // comment states the intent: "Each landing is gated by `module.active` only. ModuleHubController
-        // already filters the cards to the user's access tier, and every card's own route keeps
-        // whatever guard it has today." This middleware overrode that intent by deriving
-        // 'hubs.supplier_management.directory' from the route name — a permission that exists
-        // nowhere in the catalogue and that no role can therefore hold, so every hub landing was
-        // reachable only by platform admins, who bypass this class. A hub landing lists cards the
-        // viewer's tier already permits and links to routes that each keep their own guard, so
-        // there is nothing here for a derived permission to protect.
+        // Sales Intelligence routes carry their own permission middleware (SRS §4.2 permissions).
+        'sales.',
         'hubs.',
-        // Document Management is the same shape as Project Management, Procurement Governance and
-        // SHEQ above: it declares its own permission set (document.view, document.upload,
-        // document.purge, document.legal_hold, document.retention.manage, …), enforces it through
-        // DocumentPolicy on every action, and sits behind module.active + module.tier. The names
-        // derived from its route names are 'document-management.view' and
-        // 'document-management.categories.update', neither of which exists in the catalogue — so
-        // every screen in the module returned 403 to everyone except platform admins, who bypass
-        // this class. Its own policy checks are untouched by this entry; it only suppresses the
-        // guess.
-        'document-management.',
-        // Manufacturing & Production is the same shape again: its own mfg.* permission set
-        // (mfg.bom.approve, mfg.configure, mfg.item.manage, ...), enforced by ItemPolicy, BomPolicy
-        // and FactoryPolicyRules through authorize() in every controller action, behind
-        // module.active + module.tier. The derived names ('manufacturing.engineering.boms.index',
-        // 'manufacturing.setup.factories.store') exist nowhere in the catalogue, so without this
-        // every screen returned 403 to everyone except platform admins. A bare derived 'delete' or
-        // 'update' would be worse than useless here: Spatie's Gate::before grants any ability that
-        // matches a held permission, which would bypass the policies that carry the real rules --
-        // the separation of drafter and approver among them. ManufacturingRoutesAuthorizeTest
-        // asserts every route in the module authorizes on its own, so this exemption cannot
-        // quietly leave one open.
-        'manufacturing.',
-        // Warehouse Management & Intelligence: the same shape. Its wms.* permissions are enforced
-        // by WarehousePolicy through authorize() in every action, behind module.active +
-        // module.tier; WarehouseRoutesAuthorizeTest holds every route in the module to that.
-        'warehouse.',
-        // Tax Management & Compliance: the same shape. Its tax.* permissions (tax.prepare,
-        // tax.approve, tax.reconcile.sign_off, …) are checked by TaxController::allow() at the top
-        // of every action, behind module.active + module.tier, and the services enforce
-        // segregation of duties on top. TaxAccessAndComplianceTest holds every route to refusing a
-        // user without tax permissions, so this exemption cannot quietly leave one open.
-        'tax.',
-        // Workflow & Automation: the same shape. Its workflow.* permissions are checked by
-        // WorkflowController::allow() in every action (and task actions by assignment), behind
-        // module.active + module.tier; WorkflowAccessTest holds every route to refusing a user
-        // without workflow permissions.
-        'workflow.',
-        // AI Campaign Manager: the same shape. Every route names the Campaign Manager capability it
-        // needs (MarketingCan: create_campaign, approve_campaign, publish_campaign, …) from the
-        // person's marketing role, behind module.active + module.tier; CampaignControlTest holds the
-        // routes to refusing a role without the capability. The bare derived names ('create',
-        // 'update') would refuse an approver who holds the real capability.
-        'ai-campaign-manager.',
-        // Mkhaya AI Studio checks an ai_studio.* ability in every controller action (AiStudioAccess),
-        // behind module.active + module.tier. The derived names ('ai-studio.calendar.move', 'create')
-        // exist nowhere in the catalogue, so without this every write returned 403 to everyone but
-        // platform admins; AiStudioPagesTest holds the actions to refusing a person without the ability.
-        'ai-studio.',
     ];
 
     /**

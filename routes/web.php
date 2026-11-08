@@ -85,6 +85,7 @@ Route::middleware(['auth', 'auth.lock', 'check.banned', 'prevent-back-history', 
     Route::match(['post', 'delete'], '/quick-access/user/remove', [DashbaordController::class, 'removeFromUser']);
 
     require __DIR__.'/modules/hubs.php';
+    require __DIR__.'/modules/sales.php';
     require __DIR__.'/core/category.php';
     require __DIR__.'/core/module.php';
     require __DIR__.'/core/ribbon.php';
