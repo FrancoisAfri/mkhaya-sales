@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { router, useForm } from '@inertiajs/vue3'
 import { ref } from 'vue'
+import RemoteSelect from '@/Components/Sales/RemoteSelect.vue'
 
 const props = defineProps<{
   targets: { data: any[]; total: number; current_page: number; per_page: number }; filters: Record<string, any>
@@ -84,7 +85,8 @@ const perfColor: Record<string, string> = { achieved: 'success', on_track: 'info
             <VCol v-if="form.method === 'range'" cols="6" md="3"><VTextField v-model.number="form.target_value_max" type="number" label="To value *" density="compact" variant="outlined" :error-messages="form.errors.target_value_max" /></VCol>
             <VCol cols="12"><div class="text-subtitle-2 mt-2">Applies to (leave empty for the whole organisation; combine for e.g. a category in a region)</div></VCol>
             <VCol v-for="(label, key) in dimensions" :key="key" cols="12" md="4">
-              <VAutocomplete v-model="form.dimensions[key]" :items="options[optKey[key]] ?? []" :label="label" clearable density="compact" variant="outlined" hide-details />
+              <RemoteSelect v-if="key === 'customer_id' || key === 'product_id'" v-model="form.dimensions[key]" :resource="key === 'customer_id' ? 'customers' : 'products'" :initial="options[optKey[key]]" :label="label" />
+              <VAutocomplete v-else v-model="form.dimensions[key]" :items="options[optKey[key]] ?? []" :label="label" clearable density="compact" variant="outlined" hide-details />
             </VCol>
             <VCol cols="6" md="3"><VTextField v-model.number="form.weight" type="number" label="Weight (in a composite)" density="compact" variant="outlined" hide-details /></VCol>
             <VCol cols="12"><VTextarea v-model="form.notes" label="Notes" rows="2" density="compact" variant="outlined" class="mt-3" /></VCol>

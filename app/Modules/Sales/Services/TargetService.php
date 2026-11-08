@@ -314,7 +314,7 @@ class TargetService
             $values = array_fill_keys(array_keys($values), $parent->target_value);
         }
 
-        $labels = collect(\App\Modules\Sales\Support\MasterData::options(str_replace('_', '-', \Illuminate\Support\Str::plural(self::ALLOCATE_BY[$dimension]))))->pluck('title', 'value');
+        $labels = collect(\App\Modules\Sales\Support\MasterData::labels(str_replace('_', '-', \Illuminate\Support\Str::plural(self::ALLOCATE_BY[$dimension])), array_keys($values)))->pluck('title', 'value');
 
         return DB::transaction(function () use ($parent, $by, $dimension, $method, $values, $labels) {
             Target::where('parent_id', $parent->id)->whereIn('status', ['draft', 'rejected'])->delete(); // re-allocating replaces unapproved children

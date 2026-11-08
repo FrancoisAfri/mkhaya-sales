@@ -43,7 +43,7 @@ class SalesRecordController extends Controller
             'totals' => $totals,
             'coverage' => $coverage,
             'filters' => $filters,
-            'options' => $sales->filterOptions(),
+            'options' => $sales->filterOptions($filters),
             'pendingAdjustments' => SalesAdjustment::where('status', 'pending')->count(),
             'canAdjust' => $request->user()->can('imports.historical'),
             'canExport' => $request->user()->can('reports.export'),

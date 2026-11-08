@@ -54,6 +54,7 @@ declare module 'vue' {
     OfflineBanner: typeof import('./Components/OfflineBanner.vue')['default']
     OfflineGuard: typeof import('./Components/OfflineGuard.vue')['default']
     ProductDescriptionEditor: typeof import('./@core/components/ProductDescriptionEditor.vue')['default']
+    RemoteSelect: typeof import('./Components/Sales/RemoteSelect.vue')['default']
     RepPerformanceChart: typeof import('./Components/RepPerformanceChart.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']

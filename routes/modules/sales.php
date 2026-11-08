@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('sales')->name('sales.')->middleware(\App\Modules\Sales\Http\Middleware\RequireSalesCompany::class)->group(function () {
     // Master data (phase 2)
     Route::get('master/{resource}', [MasterDataController::class, 'index'])->name('master.index');
+    Route::get('lookup/{resource}', [MasterDataController::class, 'lookup'])->middleware('throttle:240,1')->name('lookup');
     Route::get('master/{resource}/export', [MasterDataController::class, 'export'])->name('master.export');
     Route::post('master/{resource}', [MasterDataController::class, 'store'])->name('master.store');
     Route::put('master/{resource}/{id}', [MasterDataController::class, 'update'])->whereNumber('id')->name('master.update');

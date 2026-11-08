@@ -92,36 +92,33 @@ class AICopilotController extends Controller implements \Illuminate\Routing\Cont
         return response()->json(['deleted' => true]);
     }
 
+    /** Three headline sales figures for the assistant's welcome panel. */
     public function quickStats(): JsonResponse
     {
-        $today = Carbon::today();
-
-        try {
-            $employees = DB::table('hr_people')->where('status', 1)->count();
-        } catch (\Throwable) {
-            $employees = null;
+        $none = ['sales_mtd' => null, 'achievement' => null, 'customers' => null];
+        $user = auth()->user();
+        if (! \App\Modules\Sales\Support\SalesCompany::id() || ! $user?->can('sales.view')) {
+            return response()->json($none);
         }
-
         try {
-            $onLeave = DB::table('leave_applications')
-                ->where('status', 1)
-                ->where('start_date', '<=', $today->timestamp)
-                ->where('end_date', '>=', $today->timestamp)
-                ->count();
-        } catch (\Throwable) {
-            $onLeave = null;
-        }
+            $analytics = app(\App\Modules\Sales\Services\SalesAnalytics::class);
+            $last = $analytics->lastSaleDate();
+            if (! $last) {
+                return response()->json($none);
+            }
+            $to = \Carbon\CarbonImmutable::parse($last);
+            $f = ['from' => $to->startOfMonth()->toDateString(), 'to' => $to->toDateString()];
+            $k = $analytics->kpis($f, $user);
+            $t = app(\App\Modules\Sales\Services\TargetService::class)->summary($f, $user);
+            $short = fn (float $v) => 'R ' . ($v >= 1e6 ? round($v / 1e6, 1) . 'm' : ($v >= 1e3 ? round($v / 1e3) . 'k' : round($v)));
 
-        try {
-            $assets = DB::table('assets')->count();
+            return response()->json([
+                'sales_mtd' => $short((float) $k['mtd']),
+                'achievement' => $t['org_achievement'] !== null ? $t['org_achievement'] . '%' : null,
+                'customers' => number_format((int) $k['customers']),
+            ]);
         } catch (\Throwable) {
-            $assets = null;
+            return response()->json($none);
         }
-
-        return response()->json([
-            'employees' => $employees,
-            'onLeave'   => $onLeave,
-            'assets'    => $assets,
-        ]);
     }
 }

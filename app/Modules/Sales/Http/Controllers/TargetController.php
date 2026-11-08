@@ -40,7 +40,10 @@ class TargetController extends Controller
             'targets' => $list,
             'filters' => $request->only('status'),
             'metrics' => Target::METRICS, 'methods' => Target::METHODS, 'periods' => Target::PERIODS, 'dimensions' => Target::DIMENSIONS,
-            'options' => $this->query->filterOptions(),
+            'options' => $this->query->filterOptions([
+                'customer_id' => $list->getCollection()->pluck('dimensions.customer_id')->filter()->all(),
+                'product_id' => $list->getCollection()->pluck('dimensions.product_id')->filter()->all(),
+            ]),
             'canCreate' => $user->can('targets.create'),
         ]);
     }
@@ -58,7 +61,7 @@ class TargetController extends Controller
             'children' => $target->children()->get()->map(fn (Target $c) => $this->targets->row($c, $request->user())),
             'reconciliation' => $this->targets->reconciliation($target),
             'canAllocate' => $request->user()->can('targets.create') && $target->status !== 'archived',
-            'metrics' => Target::METRICS, 'dimensions' => Target::DIMENSIONS, 'options' => $this->query->filterOptions()
+            'metrics' => Target::METRICS, 'dimensions' => Target::DIMENSIONS, 'options' => $this->query->filterOptions(['customer_id' => [$target->dimensions['customer_id'] ?? null], 'product_id' => [$target->dimensions['product_id'] ?? null]])
                 + ['distribution_centres' => \App\Modules\Sales\Support\MasterData::options('distribution-centres')],
         ]);
     }

@@ -101,6 +101,44 @@ final class MasterData
         return $all[$key] + ['key' => $key];
     }
 
+    /** Lists too large to send whole to the browser — searched as you type instead. */
+    public const REMOTE = ['customers', 'products'];
+
+    /** Search a list by code or name (for search-as-you-type pickers). */
+    public static function search(string $key, string $q = '', int $limit = 30): array
+    {
+        $def = self::get($key);
+        [$code, $label] = self::columns($key);
+        $q = trim($q);
+
+        return $def['model']::query()->where('is_active', true)
+            ->when($q !== '', fn ($w) => $w->where(fn ($x) => $x->where($code, 'ilike', "{$q}%")->orWhere($label, 'ilike', "%{$q}%")))
+            ->orderBy($label)->limit($limit)->get(['id', $code, $label])
+            ->map(fn ($r) => ['value' => $r->id, 'title' => $r->{$label} . ($r->{$code} ? " ({$r->{$code}})" : '')])->all();
+    }
+
+    /** Labels for ids already chosen, so a picker can show them without loading the whole list. */
+    public static function labels(string $key, array $ids): array
+    {
+        $ids = array_values(array_filter(array_map('intval', $ids)));
+        if (! $ids) {
+            return [];
+        }
+        [$code, $label] = self::columns($key);
+
+        return self::get($key)['model']::query()->whereIn('id', $ids)->get(['id', $code, $label])
+            ->map(fn ($r) => ['value' => $r->id, 'title' => $r->{$label} . ($r->{$code} ? " ({$r->{$code}})" : '')])->all();
+    }
+
+    private static function columns(string $key): array
+    {
+        return match ($key) {
+            'products' => ['product_code', 'product_name'],
+            'customers' => ['customer_code', 'customer_name'],
+            default => ['code', 'name'],
+        };
+    }
+
     /** id → label options for a select field. */
     public static function options(string $key): array
     {

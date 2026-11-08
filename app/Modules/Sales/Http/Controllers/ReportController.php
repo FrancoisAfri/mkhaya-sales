@@ -38,7 +38,7 @@ class ReportController extends Controller
             'dimensions' => SalesAnalytics::DIMENSIONS,
             'measures' => SalesAnalytics::MEASURES,
             'filters' => $f,
-            'options' => $this->query->filterOptions(),
+            'options' => $this->query->filterOptions($f ?? []),
             'canExport' => $request->user()->can('reports.export'),
         ]);
     }

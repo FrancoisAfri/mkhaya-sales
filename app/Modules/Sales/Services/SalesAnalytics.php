@@ -114,7 +114,9 @@ class SalesAnalytics
     public function grouped(array $f, ?User $user, array $dims, string $measure = 'net_value', string $compare = 'previous_year', int $limit = 500, string $order = 'desc'): array
     {
         [$from, $to] = $this->period($f);
-        $build = function (CarbonImmutable $a, CarbonImmutable $b, int $shiftDays = 0, int $shiftYears = 0) use ($f, $user, $dims, $measure) {
+        // Large tenants: rank and cut in the database, never pull every customer × product group into PHP.
+        $sqlLimit = in_array($order, ['desc', 'asc'], true) ? $limit : max($limit * 20, 5000);
+        $build = function (CarbonImmutable $a, CarbonImmutable $b, int $shiftDays = 0, int $shiftYears = 0, ?int $cap = null) use ($f, $user, $dims, $measure, $order) {
             $q = $this->query->base(array_merge($f, ['from' => $a->toDateString(), 'to' => $b->toDateString()]), $user);
             $keys = [];
             foreach ($dims as $i => $d) {
@@ -124,20 +126,27 @@ class SalesAnalytics
                 $keys[] = "k{$i}";
             }
             $q->selectRaw($measure === 'transactions' ? 'count(*) as value' : "coalesce(sum(s.{$measure}),0) as value");
+            if ($cap) {
+                $q->orderByRaw('value ' . ($order === 'asc' ? 'asc' : 'desc'))->limit($cap);
+            }
 
             return $q->get()->keyBy(fn ($r) => implode('|', array_map(fn ($k) => (string) $r->{$k}, $keys)));
         };
 
-        $current = $build($from, $to);
+        $current = $build($from, $to, 0, 0, $sqlLimit);
         $previous = collect();
         if ($compare === 'previous_year') {
-            $previous = $build($from->subYear(), $to->subYear(), 0, 1);
+            $previous = $build($from->subYear(), $to->subYear(), 0, 1, $sqlLimit * 2);
         } elseif ($compare === 'previous_period') {
-            $len = $from->diffInDays($to) + 1;
-            $previous = $build($from->subDays($len), $from->subDay(), $len);
+            $len = (int) $from->diffInDays($to) + 1;
+            $previous = $build($from->subDays($len), $from->subDay(), $len, 0, $sqlLimit * 2);
+        }
+        if (in_array($order, ['desc', 'asc'], true)) {
+            $previous = $previous->only($current->keys()->all()); // rank by this period
         }
 
-        $total = $current->sum('value') ?: 0;
+        $q = $this->query->base(array_merge($f, ['from' => $from->toDateString(), 'to' => $to->toDateString()]), $user);
+        $total = (float) ($measure === 'transactions' ? $q->count() : $q->sum("s.{$measure}"));
         $rows = $current->keys()->merge($previous->keys())->unique()->map(function ($key) use ($current, $previous, $dims, $total, $compare) {
             $c = $current[$key] ?? null;
             $p = $previous[$key] ?? null;
@@ -166,7 +175,7 @@ class SalesAnalytics
         };
         $rows = $rows->values();
 
-        return ['rows' => $rows->take($limit)->values()->all(), 'total' => round($total, 2), 'count' => $rows->count(),
+        return ['rows' => $rows->take($limit)->values()->all(), 'total' => round($total, 2), 'count' => $rows->count(), 'truncated' => $rows->count() >= $sqlLimit,
             'from' => $from->toDateString(), 'to' => $to->toDateString()];
     }
 
@@ -204,13 +213,16 @@ class SalesAnalytics
     /** Share of sales held by the largest customers (§13.3). */
     public function concentration(array $f, ?User $user): array
     {
-        $rows = collect($this->grouped($f, $user, ['customer'], 'net_value', 'none')['rows']);
-        $total = $rows->sum('value') ?: 1;
+        $rows = collect($this->grouped($f, $user, ['customer'], 'net_value', 'none', 10)['rows']);
+
+        [$from, $to] = $this->period($f);
+        $all = $this->query->base(array_merge($f, ['from' => $from->toDateString(), 'to' => $to->toDateString()]), $user);
+        $total = (float) (clone $all)->sum('s.net_value') ?: 1;
 
         return [
             'top5_share' => round($rows->take(5)->sum('value') / $total * 100, 1),
             'top10_share' => round($rows->take(10)->sum('value') / $total * 100, 1),
-            'customers' => $rows->count(),
+            'customers' => (clone $all)->distinct()->count('s.customer_id'),
         ];
     }
 }

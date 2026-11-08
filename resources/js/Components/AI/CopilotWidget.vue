@@ -62,7 +62,7 @@
                             </span>
                             <span v-else>
                                 <span class="status-live-dot"></span>
-                                Live ERP Data
+                                Live sales data
                             </span>
                         </p>
                     </div>
@@ -91,59 +91,13 @@
                         <span>Suggested Questions</span>
                     </div>
 
-                    <!-- Employee Section -->
-                    <div class="suggestion-category">
+                    <div v-for="group in suggestedQuestions" :key="group.title" class="suggestion-category">
                         <div class="category-title">
-                            <i class="fa-solid fa-users"></i>
-                            <span>Employees</span>
+                            <i :class="`fa-solid ${group.icon}`"></i>
+                            <span>{{ group.title }}</span>
                         </div>
                         <div class="suggestion-list">
-                            <button
-                                v-for="q in suggestedQuestions.employee"
-                                :key="q.text"
-                                @click="sendMessage(q.text)"
-                                class="suggestion-item"
-                            >
-                                <i :class="`fa-solid ${q.icon}`"></i>
-                                <span>{{ q.text }}</span>
-                                <i class="fa-solid fa-arrow-right suggestion-arrow"></i>
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Leave Section -->
-                    <div class="suggestion-category">
-                        <div class="category-title">
-                            <i class="fa-solid fa-calendar-alt"></i>
-                            <span>Leave & Attendance</span>
-                        </div>
-                        <div class="suggestion-list">
-                            <button
-                                v-for="q in suggestedQuestions.leave"
-                                :key="q.text"
-                                @click="sendMessage(q.text)"
-                                class="suggestion-item"
-                            >
-                                <i :class="`fa-solid ${q.icon}`"></i>
-                                <span>{{ q.text }}</span>
-                                <i class="fa-solid fa-arrow-right suggestion-arrow"></i>
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Asset Section -->
-                    <div class="suggestion-category">
-                        <div class="category-title">
-                            <i class="fa-solid fa-laptop"></i>
-                            <span>Assets</span>
-                        </div>
-                        <div class="suggestion-list">
-                            <button
-                                v-for="q in suggestedQuestions.asset"
-                                :key="q.text"
-                                @click="sendMessage(q.text)"
-                                class="suggestion-item"
-                            >
+                            <button v-for="q in group.items" :key="q.text" @click="sendMessage(q.text)" class="suggestion-item">
                                 <i :class="`fa-solid ${q.icon}`"></i>
                                 <span>{{ q.text }}</span>
                                 <i class="fa-solid fa-arrow-right suggestion-arrow"></i>
@@ -200,30 +154,30 @@
                     </div>
                     <h4 class="cp-welcome-title">Hi, I'm Mkhaya</h4>
                     <p class="cp-welcome-desc">
-                        Your intelligent ERP assistant. Ask me anything about employees, leave, assets, and more.
+                        Your sales intelligence assistant. Ask about sales, customers, products, targets and forecasts.
                     </p>
 
                     <!-- Quick Stats Overview -->
                     <div class="cp-quick-stats" v-if="quickStats">
                         <div class="stat-card">
-                            <i class="fa-solid fa-users"></i>
+                            <i class="fa-solid fa-chart-line"></i>
                             <div class="stat-info">
-                                <span class="stat-value">{{ quickStats.employees || '...' }}</span>
-                                <span class="stat-label">Active Employees</span>
+                                <span class="stat-value">{{ quickStats.sales_mtd ?? '—' }}</span>
+                                <span class="stat-label">Sales this month</span>
                             </div>
                         </div>
                         <div class="stat-card">
-                            <i class="fa-solid fa-calendar-day"></i>
+                            <i class="fa-solid fa-bullseye"></i>
                             <div class="stat-info">
-                                <span class="stat-value">{{ quickStats.onLeave || '...' }}</span>
-                                <span class="stat-label">On Leave Today</span>
+                                <span class="stat-value">{{ quickStats.achievement ?? '—' }}</span>
+                                <span class="stat-label">Of target</span>
                             </div>
                         </div>
                         <div class="stat-card">
-                            <i class="fa-solid fa-laptop"></i>
+                            <i class="fa-solid fa-store"></i>
                             <div class="stat-info">
-                                <span class="stat-value">{{ quickStats.assets || '...' }}</span>
-                                <span class="stat-label">Total Assets</span>
+                                <span class="stat-value">{{ quickStats.customers ?? '—' }}</span>
+                                <span class="stat-label">Buying customers</span>
                             </div>
                         </div>
                     </div>
@@ -289,7 +243,7 @@
                         v-model="input"
                         @keydown="handleKeydown"
                         @input="autoResizeTextarea"
-                        placeholder="Ask me anything about your ERP data…"
+                        placeholder="Ask about your sales, customers, products or targets…"
                         rows="1"
                         class="cp-textarea"
                         :disabled="isLoading"
@@ -301,7 +255,7 @@
                 </div>
                 <p class="cp-footer-note">
                     <i class="fa-solid fa-shield-halved"></i>
-                    Based on live ERP data — AI may make mistakes
+                    AI-generated from your live sales data — check before acting on it
                 </p>
             </div>
         </div>
@@ -331,9 +285,9 @@ interface Session {
 }
 
 interface QuickStats {
-    employees: number
-    onLeave: number
-    assets: number
+    sales_mtd: string | null
+    achievement: string | null
+    customers: string | null
 }
 
 // ── State ──
@@ -351,46 +305,31 @@ const errorMessage = ref<string | null>(null)
 const quickStats = ref<QuickStats | null>(null)
 
 // ── Suggested Questions by Category ──
-const suggestedQuestions = {
-    employee: [
-        { icon: 'fa-users', text: 'How many active employees do we have?' },
-        { icon: 'fa-user-plus', text: 'Who was hired in the last 30 days?' },
-        { icon: 'fa-user-minus', text: 'How many employees have left recently?' },
-        { icon: 'fa-venus-mars', text: 'Show me the gender breakdown of employees' },
-        { icon: 'fa-building', text: 'List employees by department' },
-        { icon: 'fa-id-card', text: 'Find employee John Smith' },
-        { icon: 'fa-chart-pie', text: 'What is the employee distribution across departments?' },
-        { icon: 'fa-envelope', text: 'Get email addresses for IT department' },
-        { icon: 'fa-trophy', text: 'Who has been with the company the longest?' },
-    ],
-    leave: [
-        { icon: 'fa-calendar-day', text: 'Who is on leave today?' },
-        { icon: 'fa-clock', text: 'Show me pending leave requests' },
-        { icon: 'fa-chart-line', text: 'How many leaves were approved this month?' },
-        { icon: 'fa-calendar-week', text: 'Who is off next week?' },
-        { icon: 'fa-chart-pie', text: 'Show me leave breakdown by type this year' },
-        { icon: 'fa-trophy', text: 'Who took the most leave this year?' },
-        { icon: 'fa-user-clock', text: 'What is my leave balance?' },
-        { icon: 'fa-balance-scale', text: 'Show leave balance for John Smith' },
-        { icon: 'fa-chart-bar', text: 'Which leave type is most popular?' },
-        { icon: 'fa-exclamation-triangle', text: 'Show pending leave approvals needed' },
-    ],
-    asset: [
-        { icon: 'fa-laptop', text: 'How many total assets are registered?' },
-        { icon: 'fa-user-check', text: 'Show me all assigned assets' },
-        { icon: 'fa-box-open', text: 'Which assets are available?' },
-        { icon: 'fa-tools', text: 'List assets under maintenance' },
-        { icon: 'fa-chart-pie', text: 'Show asset breakdown by type' },
-        { icon: 'fa-tag', text: 'Find asset with tag LPT-001' },
-        { icon: 'fa-dollar-sign', text: 'What is the total value of all assets?' },
-        { icon: 'fa-chart-line', text: 'Show me high-value assets over $5000' },
-        { icon: 'fa-user', text: 'Which assets are assigned to users?' },
-        { icon: 'fa-clipboard-list', text: 'Show me unassigned assets' },
-        { icon: 'fa-calendar-plus', text: 'What assets were added recently?' },
-        { icon: 'fa-history', text: 'Show me recent asset activity' },
-        { icon: 'fa-microchip', text: 'List all assets with components' },
-    ],
-}
+const suggestedQuestions = [
+    { title: 'Sales performance', icon: 'fa-chart-line', items: [
+        { icon: 'fa-calendar', text: 'How are sales this month compared with the same month last year?' },
+        { icon: 'fa-flag-checkered', text: 'What is the projected month-end performance?' },
+        { icon: 'fa-arrows-left-right', text: 'What has changed compared with last year?' },
+        { icon: 'fa-magnifying-glass-chart', text: 'What sales performance should management investigate?' },
+    ] },
+    { title: 'Customers', icon: 'fa-store', items: [
+        { icon: 'fa-ranking-star', text: 'Which customers contribute most to revenue?' },
+        { icon: 'fa-arrow-trend-down', text: 'Which customers are declining?' },
+        { icon: 'fa-cart-arrow-down', text: 'Which customers have reduced purchases?' },
+        { icon: 'fa-chart-pie', text: 'Which customers account for most of our sales?' },
+    ] },
+    { title: 'Products', icon: 'fa-box', items: [
+        { icon: 'fa-trophy', text: 'What were our top five products last month?' },
+        { icon: 'fa-arrow-trend-up', text: 'Which products are growing fastest?' },
+        { icon: 'fa-arrow-down', text: 'Which products have declined by more than 10%?' },
+        { icon: 'fa-wave-square', text: 'Which products are showing unusual sales movements?' },
+    ] },
+    { title: 'Targets', icon: 'fa-bullseye', items: [
+        { icon: 'fa-gauge', text: 'What is our current target achievement?' },
+        { icon: 'fa-triangle-exclamation', text: 'Which targets are at risk?' },
+        { icon: 'fa-user-xmark', text: 'Which customers performed below target?' },
+    ] },
+]
 
 // ── Computed ──
 const hasMessages = computed(() => messages.value.length > 0)

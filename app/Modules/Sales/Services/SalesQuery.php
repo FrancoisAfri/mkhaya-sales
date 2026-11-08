@@ -89,12 +89,17 @@ class SalesQuery
         }
     }
 
-    /** Options for the global filter bar. */
-    public function filterOptions(): array
+    /**
+     * Options for the global filter bar. Customers and products can run to tens of thousands, so
+     * only the ones already selected are sent; the picker searches the rest as the user types.
+     */
+    public function filterOptions(array $selected = []): array
     {
+        $pick = fn (string $k) => array_merge((array) ($selected[$k] ?? []), array_filter([$selected[$k . '_single'] ?? null]));
+
         return [
-            'customers' => MasterData::options('customers'),
-            'products' => MasterData::options('products'),
+            'customers' => MasterData::labels('customers', $pick('customer_id')),
+            'products' => MasterData::labels('products', $pick('product_id')),
             'customer_groups' => MasterData::options('customer-groups'),
             'categories' => MasterData::options('categories'),
             'brands' => MasterData::options('brands'),

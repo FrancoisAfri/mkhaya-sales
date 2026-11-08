@@ -58,7 +58,7 @@ class DashboardController extends Controller
             'view' => $view,
             'kpis' => $kpis,
             'filters' => $f,
-            'options' => $this->query->filterOptions(),
+            'options' => $this->query->filterOptions($f ?? []),
         ] + $data);
     }
 
@@ -71,7 +71,7 @@ class DashboardController extends Controller
             'forecast' => $forecast->monthly($f, $request->user()),
             'products' => collect($this->analytics->grouped(array_merge($f, ['from' => now()->subMonths(3)->startOfMonth()->toDateString()]), $request->user(), ['product'], 'net_value', 'previous_year', 15)['rows']),
             'filters' => $f,
-            'options' => $this->query->filterOptions(),
+            'options' => $this->query->filterOptions($f ?? []),
         ]);
     }
 }

@@ -2,6 +2,7 @@
 import { router, useForm } from '@inertiajs/vue3'
 
 import { computed } from 'vue'
+import RemoteSelect from '@/Components/Sales/RemoteSelect.vue'
 
 const props = defineProps<{ target: any; row: any; steps: { step: number; approvers: string[] }[]; canApprove: boolean; metrics: Record<string, string>; dimensions: Record<string, string>; options: Record<string, any[]>
   children: any[]; reconciliation: { children: number; allocated: number; parent: number; difference: number; balanced: boolean } | null; canAllocate: boolean }>()
@@ -87,7 +88,8 @@ function send(decision: string) { decide.decision = decision; decide.post(`/sale
             <VAlert v-if="target.parent" type="info" variant="tonal" density="compact">Part of <a :href="`/sales/targets/${target.parent.uuid}`">{{ target.parent.name }}</a></VAlert>
             <VSelect v-model="alloc.dimension" :items="allocDims" label="Split by" density="compact" variant="outlined" hide-details @update:model-value="alloc.members = []; alloc.given = {}" />
             <VSelect v-model="alloc.method" :items="[{ value: 'historical', title: 'Last year\'s sales mix (same period)' }, { value: 'equal', title: 'Equal shares' }, { value: 'percentage', title: 'Percentages I enter' }, { value: 'manual', title: 'Values I enter' }]" label="Method" density="compact" variant="outlined" hide-details />
-            <VAutocomplete v-model="alloc.members" :items="memberItems" label="Allocate to" multiple chips closable-chips density="compact" variant="outlined" hide-details>
+            <RemoteSelect v-if="['customer_id', 'product_id'].includes(alloc.dimension)" v-model="alloc.members" :resource="alloc.dimension === 'customer_id' ? 'customers' : 'products'" label="Allocate to" multiple />
+            <VAutocomplete v-else v-model="alloc.members" :items="memberItems" label="Allocate to" multiple chips closable-chips density="compact" variant="outlined" hide-details>
               <template #append><VBtn size="x-small" variant="text" @click="allocateAll">All</VBtn></template>
             </VAutocomplete>
             <template v-if="['percentage', 'manual'].includes(alloc.method)">

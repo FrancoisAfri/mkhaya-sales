@@ -65,6 +65,15 @@ class MasterDataController extends Controller
         ]);
     }
 
+    /** Search-as-you-type for large lists (customers, products). */
+    public function lookup(Request $request, string $resource): \Illuminate\Http\JsonResponse
+    {
+        $def = MasterData::get($resource);
+        abort_unless($request->user()->can($def['view']) || $request->user()->can('sales.view'), 403);
+
+        return response()->json(MasterData::search($resource, (string) $request->query('q', ''), min(50, (int) $request->query('limit', 30))));
+    }
+
     public function store(Request $request, string $resource): RedirectResponse
     {
         $def = MasterData::get($resource);

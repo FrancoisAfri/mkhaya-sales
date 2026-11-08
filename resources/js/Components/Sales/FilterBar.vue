@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3'
 import { reactive } from 'vue'
+import RemoteSelect from './RemoteSelect.vue'
 
 /** The global sales filters (SRS §13.6), shared by records, dashboards and reports. */
 const props = defineProps<{ url: string; filters: Record<string, any>; options: Record<string, { value: number; title: string }[]>; extra?: Record<string, any> }>()
@@ -33,7 +34,9 @@ function reset() { Object.keys(f).forEach(k => delete f[k]); apply() }
       <VTextField v-model="f.from" type="date" label="From" density="compact" variant="outlined" hide-details style="max-width: 160px" @change="apply" />
       <VTextField v-model="f.to" type="date" label="To" density="compact" variant="outlined" hide-details style="max-width: 160px" @change="apply" />
       <VChip v-for="[label, fn] in presets" :key="label" size="small" variant="tonal" @click="preset(fn)">{{ label }}</VChip>
-      <template v-for="[key, opt, label] in selects" :key="key">
+      <RemoteSelect v-model="f.customer_id" resource="customers" :initial="options.customers" label="Customer" style="min-width: 200px; max-width: 260px" @update:model-value="apply" />
+      <RemoteSelect v-model="f.product_id" resource="products" :initial="options.products" label="Product" style="min-width: 200px; max-width: 260px" @update:model-value="apply" />
+      <template v-for="[key, opt, label] in selects.filter(([k]) => !['customer_id', 'product_id'].includes(k))" :key="key">
         <VAutocomplete v-if="(options[opt] ?? []).length" v-model="f[key]" :items="options[opt]" :label="label" clearable density="compact" variant="outlined" hide-details
                        style="min-width: 170px; max-width: 220px" @update:model-value="apply" />
       </template>
