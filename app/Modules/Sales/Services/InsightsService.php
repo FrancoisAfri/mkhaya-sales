@@ -65,10 +65,11 @@ class InsightsService
         $end = CarbonImmutable::parse($last);
         $first = app(SalesQuery::class)->base([], $user)->groupBy('s.product_id')
             ->selectRaw('s.product_id, min(s.transaction_date) as first_sale, max(s.transaction_date) as last_sale')->get()->keyBy('product_id');
-        $rows = collect($this->analytics->grouped(['from' => $end->subMonths(3)->addDay()->toDateString(), 'to' => $end->toDateString()], $user, ['product'], 'net_value', 'previous_year', 5000)['rows']);
+        $rows = collect($this->analytics->grouped(['from' => $end->subMonths(3)->addDay()->toDateString(), 'to' => $end->toDateString()], $user, ['product'], 'net_value', 'previous_year', 20000)['rows'])->keyBy('product_id');
+        $names = \Illuminate\Support\Facades\DB::table('products')->whereIn('id', $first->keys())->pluck('product_name', 'id');
 
-        $classified = $first->map(function ($f, $id) use ($rows, $end) {
-            $r = $rows->firstWhere('product_id', $id);
+        $classified = $first->map(function ($f, $id) use ($rows, $end, $names) {
+            $r = $rows[$id] ?? null;
             $stage = match (true) {
                 CarbonImmutable::parse($f->last_sale)->lt($end->subDays(60)) => 'dormant',
                 CarbonImmutable::parse($f->first_sale)->gt($end->subDays(90)) => 'new',
@@ -77,11 +78,13 @@ class InsightsService
                 default => 'mature',
             };
 
-            return ['product_id' => $id, 'product' => $r['product'] ?? \Illuminate\Support\Facades\DB::table('products')->where('id', $id)->value('product_name'),
+            return ['product_id' => $id, 'product' => $r['product'] ?? $names[$id] ?? '#' . $id,
                 'stage' => $stage, 'first_sale' => $f->first_sale, 'last_sale' => $f->last_sale,
                 'last_3_months' => $r['value'] ?? 0, 'growth' => $r['growth'] ?? null];
         })->values();
 
-        return ['counts' => $classified->countBy('stage'), 'products' => $classified->sortBy(fn ($p) => array_search($p['stage'], ['declining', 'dormant', 'new', 'growing', 'mature']))->values()];
+        // Counts cover every product; the list shows the 300 that most need attention.
+        return ['counts' => $classified->countBy('stage'), 'total' => $classified->count(),
+            'products' => $classified->sortBy(fn ($p) => [array_search($p['stage'], ['declining', 'dormant', 'new', 'growing', 'mature']), -$p['last_3_months']])->take(300)->values()];
     }
 }

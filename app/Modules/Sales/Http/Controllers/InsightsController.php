@@ -27,7 +27,7 @@ class InsightsController extends Controller
             'anomalies' => $insights->anomalies($user, (float) PerformanceAlerts::settingsFor(SalesCompany::id())['unusual_movement']['threshold']),
             'lifecycle' => $insights->lifecycle($user),
             'forecast' => $last ? $forecast->monthly([], $user, 12) : null,
-            'customers' => $last ? $analytics->grouped($year, $user, ['customer'], 'net_value', 'none', 200)['rows'] : [],
+            'customers' => $last ? $analytics->grouped($year, $user, ['customer'], 'net_value', 'none', 300)['rows'] : [],
             'lastTwelveMonths' => $last ? $analytics->sum([], $user, CarbonImmutable::parse($year['from']), CarbonImmutable::parse($last)) : 0,
             'canUseAi' => $user->can('ai.use'),
         ]);
