@@ -46,6 +46,24 @@ return Application::configure(basePath: dirname(__DIR__))
         channels: __DIR__.'/../routes/channels.php',
         health: '/up',
     )
+    ->withCommands([
+        \App\Modules\Tenancy\Console\CreateCompanyCommand::class,
+        \App\Modules\Tenancy\Console\RunSubscriptionBilling::class,
+        \App\Modules\Tenancy\Console\ExpireTrials::class,
+        \App\Modules\Tenancy\Console\PurgeArchivedCompanies::class,
+        \App\Modules\Tenancy\Console\TrialReminders::class,
+        \App\Modules\Tenancy\Console\BackfillTenantReferenceCommand::class,
+    ])
+    ->withSchedule(function (Schedule $schedule) {
+        // Platform subscriptions and trials (carried over from the hub).
+        $schedule->command(\App\Modules\Tenancy\Console\RunSubscriptionBilling::class)->monthlyOn(1, '02:00')->withoutOverlapping();
+        $schedule->command(\App\Modules\Tenancy\Console\ExpireTrials::class)->dailyAt('00:30')->withoutOverlapping()
+            ->appendOutputTo(storage_path('logs/tenancy-trials.log'));
+        $schedule->command(\App\Modules\Tenancy\Console\PurgeArchivedCompanies::class)->dailyAt('03:40')->withoutOverlapping()
+            ->appendOutputTo(storage_path('logs/tenancy-purge.log'));
+        $schedule->command(\App\Modules\Tenancy\Console\TrialReminders::class)->dailyAt('06:00')->withoutOverlapping()
+            ->appendOutputTo(storage_path('logs/tenancy-trials.log'));
+    })
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->group('api', [
             'throttle:api',

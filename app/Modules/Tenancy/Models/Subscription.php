@@ -9,9 +9,18 @@ class Subscription extends Model
 {
     protected $table = 'subscriptions';
 
-    protected $fillable = ['company_id', 'plan_code', 'status', 'current_period_start', 'current_period_end'];
+    protected $fillable = [
+        'company_id', 'plan_code', 'status', 'current_period_start', 'current_period_end',
+        // The commercial contract (SRS §19.1).
+        'monthly_price', 'contract_start', 'contract_end', 'billing_frequency', 'named_users', 'storage_gb',
+        'integration_allowance', 'ai_token_allowance', 'change_request_hourly_rate', 'terms_note',
+    ];
 
-    protected $casts = ['current_period_start' => 'datetime', 'current_period_end' => 'datetime'];
+    protected $casts = [
+        'current_period_start' => 'datetime', 'current_period_end' => 'datetime',
+        'contract_start' => 'date', 'contract_end' => 'date',
+        'monthly_price' => 'decimal:2', 'change_request_hourly_rate' => 'decimal:2',
+    ];
 
     public function company(): BelongsTo
     {

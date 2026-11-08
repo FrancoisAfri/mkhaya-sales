@@ -31,7 +31,7 @@
         <env name="DB_PORT" value="5432"/>
         <!-- Dedicated test database. NEVER point this at the dev DB (mkhaya_hub):
              tests use RefreshDatabase, which runs migrate:fresh and drops every table. -->
-        <env name="DB_DATABASE" value="mkhaya_hub_test"/>
+        <env name="DB_DATABASE" value="mkhaya_sales_test"/>
         <env name="DB_USERNAME" value="mkhaya_user"/>
         <env name="DB_PASSWORD" value="mkhaya2026!@"/>
         <env name="MAIL_MAILER" value="array"/>
