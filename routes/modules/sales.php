@@ -2,6 +2,7 @@
 
 use App\Modules\Sales\Http\Controllers\ImportController;
 use App\Modules\Sales\Http\Controllers\LayoutController;
+use App\Modules\Sales\Http\Controllers\MailboxController;
 use App\Modules\Sales\Http\Controllers\MasterDataController;
 use App\Modules\Sales\Http\Controllers\SalesRecordController;
 use Illuminate\Support\Facades\Route;
@@ -46,4 +47,11 @@ Route::prefix('sales')->name('sales.')->group(function () {
     Route::get('records/{id}', [SalesRecordController::class, 'show'])->whereNumber('id')->name('records.show');
     Route::post('records/{id}/adjust', [SalesRecordController::class, 'adjust'])->whereNumber('id')->name('records.adjust');
     Route::post('adjustments/{id}/decide', [SalesRecordController::class, 'decide'])->whereNumber('id')->name('adjustments.decide');
+
+    // Mailbox setup and automated daily retrieval (phase 5)
+    Route::get('mailboxes', [MailboxController::class, 'index'])->name('mailboxes.index');
+    Route::post('mailboxes', [MailboxController::class, 'store'])->name('mailboxes.store');
+    Route::put('mailboxes/{mailbox}', [MailboxController::class, 'update'])->name('mailboxes.update');
+    Route::post('mailboxes/{mailbox}/test', [MailboxController::class, 'test'])->middleware('throttle:10,1')->name('mailboxes.test');
+    Route::post('mailboxes/{mailbox}/run', [MailboxController::class, 'run'])->middleware('throttle:10,1')->name('mailboxes.run');
 });

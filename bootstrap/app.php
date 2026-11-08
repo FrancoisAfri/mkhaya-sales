@@ -53,8 +53,12 @@ return Application::configure(basePath: dirname(__DIR__))
         \App\Modules\Tenancy\Console\PurgeArchivedCompanies::class,
         \App\Modules\Tenancy\Console\TrialReminders::class,
         \App\Modules\Tenancy\Console\BackfillTenantReferenceCommand::class,
+        \App\Modules\Sales\Console\RunMailboxes::class,
     ])
     ->withSchedule(function (Schedule $schedule) {
+        // Sales Intelligence: each mailbox runs at its own configured time (default 03:30 SAST).
+        $schedule->command(\App\Modules\Sales\Console\RunMailboxes::class)->everyMinute()->withoutOverlapping();
+
         // Platform subscriptions and trials (carried over from the hub).
         $schedule->command(\App\Modules\Tenancy\Console\RunSubscriptionBilling::class)->monthlyOn(1, '02:00')->withoutOverlapping();
         $schedule->command(\App\Modules\Tenancy\Console\ExpireTrials::class)->dailyAt('00:30')->withoutOverlapping()
