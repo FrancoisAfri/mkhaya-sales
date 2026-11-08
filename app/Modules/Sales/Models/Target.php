@@ -9,8 +9,10 @@ class Target extends SalesModel
     public const METRICS = [
         'net_value' => 'Net sales value', 'gross_value' => 'Gross sales value', 'quantity' => 'Units / cases sold',
         'active_customers' => 'Active customers (coverage)', 'transactions' => 'Number of sales lines',
+        'formula' => 'Formula (e.g. net_value / quantity)',
     ];
-    public const METHODS = ['fixed' => 'Reach the value', 'minimum' => 'At least (minimum threshold)', 'maximum' => 'At most (maximum threshold)', 'range' => 'Within a range'];
+    public const METHODS = ['fixed' => 'Reach the value', 'minimum' => 'At least (minimum threshold)', 'maximum' => 'At most (maximum threshold)', 'range' => 'Within a range',
+        'growth' => 'Growth % on the same period last year', 'composite' => 'Composite score of its child targets (weighted)'];
     public const PERIODS = ['daily', 'weekly', 'monthly', 'quarterly', 'half_yearly', 'annual', 'financial_year', 'custom'];
     public const DIMENSIONS = [
         'customer_id' => 'Customer', 'customer_group_id' => 'Customer group', 'product_id' => 'Product', 'category_id' => 'Product category',
@@ -19,7 +21,7 @@ class Target extends SalesModel
     ];
 
     protected $casts = [
-        'dimensions' => 'array', 'start_date' => 'date', 'end_date' => 'date', 'target_value' => 'float', 'target_value_max' => 'float',
+        'dimensions' => 'array', 'start_date' => 'date', 'end_date' => 'date', 'target_value' => 'float', 'target_value_max' => 'float', 'weight' => 'float',
         'submitted_at' => 'datetime', 'approved_at' => 'datetime',
     ];
 

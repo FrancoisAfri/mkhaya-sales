@@ -29,7 +29,7 @@ class TargetController extends Controller
             ->when($request->query('status'), fn ($q, $s) => $q->where('status', $s))
             ->orderByDesc('start_date')->paginate(25)->withQueryString();
         $list->getCollection()->transform(fn (Target $t) => $this->targets->row($t, $user) + [
-            'id' => $t->id, 'target_value_max' => $t->target_value_max, 'period_type' => $t->period_type, 'notes' => $t->notes,
+            'id' => $t->id, 'target_value_max' => $t->target_value_max, 'formula' => $t->formula, 'weight' => $t->weight, 'period_type' => $t->period_type, 'notes' => $t->notes,
             'creator' => $t->creator?->email, 'can_approve' => $this->targets->canApprove($user, $t),
             'can_edit' => $user->can('targets.edit') && in_array($t->status, ['draft', 'rejected'], true),
             'can_submit' => $user->can('targets.submit') && in_array($t->status, ['draft', 'rejected'], true),
@@ -230,7 +230,19 @@ class TargetController extends Controller
             'dimensions' => ['nullable', 'array'],
             'dimensions.*' => ['nullable', 'integer'],
             'notes' => ['nullable', 'string', 'max:2000'],
+            'formula' => ['nullable', 'required_if:metric,formula', 'string', 'max:255'],
+            'weight' => ['nullable', 'numeric', 'min:0', 'max:100'],
         ]);
+        if (($data['metric'] ?? null) === 'formula') {
+            try {
+                \App\Modules\Sales\Support\Formula::variables($data['formula']);
+            } catch (\RuntimeException $e) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['formula' => $e->getMessage()]);
+            }
+        } else {
+            $data['formula'] = null;
+        }
+        $data['weight'] = $data['weight'] ?? 1;
         $data['dimensions'] = array_intersect_key(array_filter($data['dimensions'] ?? []), Target::DIMENSIONS) ?: null;
 
         return $data;

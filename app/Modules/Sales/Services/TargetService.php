@@ -29,13 +29,16 @@ class TargetService
         $end = CarbonImmutable::parse($t->end_date);
         $asOf = CarbonImmutable::parse(min($end->toDateString(), now()->toDateString()));
         $f = array_filter(($t->dimensions ?? []) + ['from' => $start->toDateString(), 'to' => $asOf->toDateString()]);
-        $q = $this->query->base($f, $user);
+        $notStarted = $asOf->lt($start);
 
-        $actual = $asOf->lt($start) ? 0.0 : (float) match ($t->metric) {
-            'active_customers' => $q->distinct()->count('s.customer_id'),
-            'transactions' => $q->count(),
-            default => $q->sum("s.{$t->metric}"),
-        };
+        if ($t->method === 'composite') {
+            return $this->evaluateComposite($t, $user, $notStarted);
+        }
+        if ($t->method === 'growth') {
+            return $this->evaluateGrowth($t, $user, $f, $start, $asOf, $notStarted);
+        }
+
+        $actual = $notStarted ? 0.0 : $this->measure($t, $f, $user);
 
         $target = (float) $t->target_value;
         $today = CarbonImmutable::today();
@@ -44,7 +47,8 @@ class TargetService
         // Selling days still to come after today (today counts as done).
         $remainingDays = $today->gte($end) ? 0 : (int) $today->diffInDays($end) + ($today->lt($start) ? 1 : 0);
         $remaining = max(0, $target - $actual);
-        $forecast = $elapsed > 0 && $t->metric !== 'active_customers' ? $actual / $elapsed * $totalDays : $actual;
+        $cumulative = ! in_array($t->metric, ['active_customers', 'formula'], true);
+        $forecast = $elapsed > 0 && $cumulative ? $actual / $elapsed * $totalDays : $actual;
         $achievement = $target > 0 ? round($actual / $target * 100, 1) : null;
         $forecastPct = $target > 0 ? $forecast / $target * 100 : 0;
 
@@ -198,6 +202,59 @@ class TargetService
         });
     }
 
+    /** The value of a target's measure (or formula) over a filter. */
+    public function measure(Target $t, array $f, ?User $user): float
+    {
+        $one = function (string $m) use ($f, $user) {
+            $q = $this->query->base($f, $user);
+
+            return (float) match ($m) {
+                'active_customers' => $q->distinct()->count('s.customer_id'),
+                'transactions' => $q->count(),
+                default => $q->sum("s.{$m}"),
+            };
+        };
+        if ($t->metric !== 'formula') {
+            return $one($t->metric);
+        }
+        $vars = [];
+        foreach (\App\Modules\Sales\Support\Formula::variables((string) $t->formula) as $v) {
+            $vars[$v] = $one($v);
+        }
+
+        return round(\App\Modules\Sales\Support\Formula::evaluate((string) $t->formula, $vars), 4);
+    }
+
+    /** Growth target: the target is a % change on the same span last year (§11.1 growth targets). */
+    private function evaluateGrowth(Target $t, ?User $user, array $f, CarbonImmutable $start, CarbonImmutable $asOf, bool $notStarted): array
+    {
+        $current = $notStarted ? 0.0 : $this->measure($t, $f, $user);
+        $last = $notStarted ? 0.0 : $this->measure($t, array_merge($f, ['from' => $start->subYear()->toDateString(), 'to' => $asOf->subYear()->toDateString()]), $user);
+        $growth = $last > 0 ? round(($current - $last) / $last * 100, 1) : null;
+        $target = (float) $t->target_value;
+        $status = $notStarted ? 'not_started' : ($growth === null ? 'behind' : ($growth >= $target ? 'achieved' : ($growth >= $target * 0.9 ? 'at_risk' : 'behind')));
+
+        return ['target' => $target, 'actual' => $growth ?? 0.0, 'achievement' => $target > 0 && $growth !== null ? round($growth / $target * 100, 1) : null,
+            'variance' => round(($growth ?? 0) - $target, 1), 'remaining' => round(max(0, $target - ($growth ?? 0)), 1), 'days_left' => max(0, (int) CarbonImmutable::today()->diffInDays($t->end_date, false)),
+            'required_daily' => null, 'forecast' => $growth ?? 0.0, 'forecast_achievement' => $target > 0 && $growth !== null ? round($growth / $target * 100, 1) : null,
+            'status' => $status, 'unit' => '%', 'current_value' => round($current, 2), 'last_year_value' => round($last, 2)];
+    }
+
+    /** Composite target: the weighted achievement of its child targets, scored out of 100 (§11.4). */
+    private function evaluateComposite(Target $t, ?User $user, bool $notStarted): array
+    {
+        $children = Target::where('parent_id', $t->id)->where('status', '!=', 'archived')->get();
+        $weight = $children->sum('weight') ?: 1;
+        $score = $children->sum(fn (Target $c) => min(150, (float) ($this->evaluate($c, $user)['achievement'] ?? 0)) * (float) $c->weight) / $weight;
+        $forecast = $children->sum(fn (Target $c) => min(150, (float) ($this->evaluate($c, $user)['forecast_achievement'] ?? 0)) * (float) $c->weight) / $weight;
+        $target = (float) $t->target_value ?: 100.0;
+
+        return ['target' => $target, 'actual' => round($score, 1), 'achievement' => round($score / $target * 100, 1), 'variance' => round($score - $target, 1),
+            'remaining' => round(max(0, $target - $score), 1), 'days_left' => max(0, (int) CarbonImmutable::today()->diffInDays($t->end_date, false)), 'required_daily' => null,
+            'forecast' => round($forecast, 1), 'forecast_achievement' => round($forecast / $target * 100, 1), 'unit' => 'score', 'components' => $children->count(),
+            'status' => $notStarted ? 'not_started' : ($score >= $target ? 'achieved' : ($forecast >= $target ? 'on_track' : ($forecast >= $target * 0.9 ? 'at_risk' : 'behind')))];
+    }
+
     // ── Allocation (§11.5) ──────────────────────────────────────────────────────────────────────
 
     /** dimension key → [SalesAnalytics dimension, master-data option key] */
@@ -252,6 +309,10 @@ class TargetService
         }
         $largest = array_search(max($values), $values, true);
         $values[$largest] = round($values[$largest] + ($parent->target_value - array_sum($values)), 2);
+        if ($parent->method === 'growth' || $parent->metric === 'formula') {
+            // A rate is not divided: every child carries the same growth % or ratio.
+            $values = array_fill_keys(array_keys($values), $parent->target_value);
+        }
 
         $labels = collect(\App\Modules\Sales\Support\MasterData::options(str_replace('_', '-', \Illuminate\Support\Str::plural(self::ALLOCATE_BY[$dimension]))))->pluck('title', 'value');
 
@@ -261,7 +322,8 @@ class TargetService
             return collect($values)->map(fn ($v, $id) => Target::create([
                 'parent_id' => $parent->id, 'allocation_method' => $method,
                 'name' => $parent->name . ' — ' . ($labels[$id] ?? "#{$id}"),
-                'metric' => $parent->metric, 'method' => $parent->method, 'period_type' => $parent->period_type,
+                'metric' => $parent->metric, 'formula' => $parent->formula,
+                'method' => $parent->method === 'composite' ? 'fixed' : $parent->method, 'period_type' => $parent->period_type,
                 'start_date' => $parent->start_date, 'end_date' => $parent->end_date, 'target_value' => $v,
                 'dimensions' => array_merge($parent->dimensions ?? [], [$dimension => $id]),
                 'status' => 'draft', 'created_by' => $by->id,
@@ -275,6 +337,9 @@ class TargetService
         $children = Target::where('parent_id', $parent->id)->where('status', '!=', 'archived')->get();
         if ($children->isEmpty()) {
             return null;
+        }
+        if ($parent->method === 'growth' || $parent->metric === 'formula' || $parent->method === 'composite') {
+            return ['children' => $children->count(), 'allocated' => $parent->target_value, 'parent' => $parent->target_value, 'difference' => 0.0, 'balanced' => true];
         }
         $sum = round($children->sum('target_value'), 2);
 

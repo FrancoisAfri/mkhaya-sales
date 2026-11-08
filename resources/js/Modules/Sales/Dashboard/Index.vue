@@ -131,8 +131,8 @@ const empty = computed(() => !props.kpis.last_sale_date)
           <tbody>
             <tr v-for="t in targets" :key="t.uuid" class="cursor-pointer" @click="router.get(`/sales/targets/${t.uuid}`)">
               <td>{{ t.name }}</td><td class="text-caption">{{ t.start_date }} → {{ t.end_date }}</td>
-              <td class="text-end">{{ t.metric.includes('value') ? money(t.performance.target) : num(t.performance.target) }}</td>
-              <td class="text-end">{{ t.metric.includes('value') ? money(t.performance.actual) : num(t.performance.actual) }}</td>
+              <td class="text-end">{{ t.method === 'growth' ? t.performance.target + '%' : t.metric.includes('value') ? money(t.performance.target) : num(t.performance.target) }}</td>
+              <td class="text-end">{{ t.method === 'growth' ? t.performance.actual + '%' : t.metric.includes('value') ? money(t.performance.actual) : num(t.performance.actual) }}</td>
               <td><VProgressLinear :model-value="Math.min(100, t.performance.achievement ?? 0)" :color="statusColor[t.performance.status]" height="16" rounded><small>{{ t.performance.achievement ?? '—' }}%</small></VProgressLinear></td>
               <td class="text-end">{{ num(t.performance.remaining) }}</td><td class="text-end">{{ t.performance.required_daily === null ? '—' : num(t.performance.required_daily) }}</td>
               <td class="text-end">{{ num(t.performance.forecast) }}</td>

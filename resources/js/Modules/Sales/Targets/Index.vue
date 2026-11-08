@@ -14,7 +14,7 @@ const today = new Date()
 const iso = (d: Date) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10)
 const blank = () => ({ name: '', metric: 'net_value', method: 'fixed', period_type: 'monthly', start_date: iso(new Date(today.getFullYear(), today.getMonth(), 1)),
   end_date: iso(new Date(today.getFullYear(), today.getMonth() + 1, 0)), target_value: null as number | null, target_value_max: null as number | null,
-  dimensions: {} as Record<string, number | null>, notes: '', submit_now: false })
+  dimensions: {} as Record<string, number | null>, notes: '', submit_now: false, formula: '', weight: 1 })
 const dialog = ref(false)
 const editing = ref<any>(null)
 const form = useForm(blank())
@@ -28,7 +28,7 @@ function save(submit: boolean) {
   const opts = { preserveScroll: true, onSuccess: () => { dialog.value = false } }
   editing.value ? form.put(`/sales/targets/${editing.value.uuid}`, opts) : form.post('/sales/targets', opts)
 }
-const fmt = (t: any, n: any) => t.metric.includes('value') ? 'R ' + Number(n ?? 0).toLocaleString('en-ZA', { maximumFractionDigits: 0 }) : Number(n ?? 0).toLocaleString('en-ZA')
+const fmt = (t: any, n: any) => t.method === 'growth' ? `${n ?? 0}%` : t.method === 'composite' ? `${n ?? 0} pts` : t.metric.includes('value') ? 'R ' + Number(n ?? 0).toLocaleString('en-ZA', { maximumFractionDigits: 0 }) : Number(n ?? 0).toLocaleString('en-ZA', { maximumFractionDigits: 2 })
 const dimText = (t: any) => Object.entries(t.dimensions ?? {}).map(([k, v]) => `${props.dimensions[k]}: ${props.options[optKey[k]]?.find(o => o.value === v)?.title ?? v}`).join(', ') || 'Whole organisation'
 const lifeColor: Record<string, string> = { draft: 'default', submitted: 'info', 'revision submitted': 'info', approved: 'primary', active: 'success', 'active (revised)': 'success', rejected: 'error', archived: 'default', completed: 'secondary' }
 const perfColor: Record<string, string> = { achieved: 'success', on_track: 'info', at_risk: 'warning', behind: 'error', breached: 'error', not_started: 'default' }
@@ -74,6 +74,10 @@ const perfColor: Record<string, string> = { achieved: 'success', on_track: 'info
             <VCol cols="12" md="4"><VSelect v-model="form.metric" :items="Object.entries(metrics).map(([v, t]) => ({ value: v, title: t }))" label="What is measured" density="compact" variant="outlined" /></VCol>
             <VCol cols="12" md="4"><VSelect v-model="form.method" :items="Object.entries(methods).map(([v, t]) => ({ value: v, title: t }))" label="Rule" density="compact" variant="outlined" /></VCol>
             <VCol cols="12" md="4"><VSelect v-model="form.period_type" :items="periods.map(p => ({ value: p, title: p.replace('_', ' ') }))" label="Period" density="compact" variant="outlined" /></VCol>
+            <VCol v-if="form.metric === 'formula'" cols="12"><VTextField v-model="form.formula" label="Formula *" placeholder="net_value / quantity" density="compact" variant="outlined" :error-messages="form.errors.formula"
+              hint="Numbers, + - * / ( ) and: net_value, gross_value, quantity, discount, active_customers, transactions" persistent-hint /></VCol>
+            <VAlert v-if="form.method === 'growth'" type="info" variant="tonal" density="compact" class="mx-2 mb-2">Enter the target as a % growth on the same period last year, e.g. 8 for +8%.</VAlert>
+            <VAlert v-if="form.method === 'composite'" type="info" variant="tonal" density="compact" class="mx-2 mb-2">A composite is scored out of 100 from its child targets (allocate or link them, each with a weight). Enter 100 as the target.</VAlert>
             <VCol cols="6" md="3"><VTextField v-model="form.start_date" type="date" label="From *" density="compact" variant="outlined" :error-messages="form.errors.start_date" /></VCol>
             <VCol cols="6" md="3"><VTextField v-model="form.end_date" type="date" label="To *" density="compact" variant="outlined" :error-messages="form.errors.end_date" /></VCol>
             <VCol cols="6" md="3"><VTextField v-model.number="form.target_value" type="number" :label="form.method === 'range' ? 'From value *' : 'Target value *'" density="compact" variant="outlined" :error-messages="form.errors.target_value" /></VCol>
@@ -82,6 +86,7 @@ const perfColor: Record<string, string> = { achieved: 'success', on_track: 'info
             <VCol v-for="(label, key) in dimensions" :key="key" cols="12" md="4">
               <VAutocomplete v-model="form.dimensions[key]" :items="options[optKey[key]] ?? []" :label="label" clearable density="compact" variant="outlined" hide-details />
             </VCol>
+            <VCol cols="6" md="3"><VTextField v-model.number="form.weight" type="number" label="Weight (in a composite)" density="compact" variant="outlined" hide-details /></VCol>
             <VCol cols="12"><VTextarea v-model="form.notes" label="Notes" rows="2" density="compact" variant="outlined" class="mt-3" /></VCol>
           </VRow>
         </VCardText>

@@ -13,8 +13,9 @@ const memberItems = computed(() => props.options[optKey[alloc.dimension]] ?? [])
 const givenSum = computed(() => alloc.members.reduce((a, id) => a + Number(alloc.given[id] ?? 0), 0))
 function allocateAll() { alloc.members = memberItems.value.map((o: any) => o.value) }
 const t = props.target, p = props.row.performance
-const isMoney = t.metric.includes('value')
-const fmt = (n: any) => n === null || n === undefined ? '—' : (isMoney ? 'R ' : '') + Number(n).toLocaleString('en-ZA', { maximumFractionDigits: 2 })
+const isMoney = t.metric.includes('value') && !['growth', 'composite'].includes(t.method)
+const unit = t.method === 'growth' ? '%' : t.method === 'composite' ? ' pts' : ''
+const fmt = (n: any) => n === null || n === undefined ? '—' : (isMoney ? 'R ' : '') + Number(n).toLocaleString('en-ZA', { maximumFractionDigits: 2 }) + unit
 const decide = useForm({ decision: 'approve', comment: '' })
 const revise = useForm({ target_value: t.target_value, target_value_max: t.target_value_max, reason: '' })
 const perfColor: Record<string, string> = { achieved: 'success', on_track: 'info', at_risk: 'warning', behind: 'error', breached: 'error', not_started: 'default' }
