@@ -28,7 +28,7 @@ class BIQueryService
     public const BASE = [
         'net_value' => ['label' => 'Net sales', 'sql' => 'coalesce(sum(s.net_value),0)', 'format' => 'currency'],
         'gross_value' => ['label' => 'Gross sales', 'sql' => 'coalesce(sum(s.gross_value),0)', 'format' => 'currency'],
-        'quantity' => ['label' => 'Quantity', 'sql' => 'coalesce(sum(s.quantity),0)', 'format' => 'number'],
+        'quantity' => ['label' => 'Volume (cases)', 'sql' => 'coalesce(sum(s.quantity),0)', 'format' => 'number'],
         'discount' => ['label' => 'Discount', 'sql' => 'coalesce(sum(s.discount),0)', 'format' => 'currency'],
         'transactions' => ['label' => 'Sales lines', 'sql' => 'count(*)', 'format' => 'number'],
         'active_customers' => ['label' => 'Active customers', 'sql' => 'count(distinct s.customer_id)', 'format' => 'number'],
@@ -49,6 +49,9 @@ class BIQueryService
         'target' => ['label' => 'Target', 'format' => 'currency'],
         'achievement_pct' => ['label' => 'Target achievement %', 'format' => 'percent'],
         'variance' => ['label' => 'Variance to target', 'format' => 'currency'],
+        'month_target' => ['label' => 'Full-month target', 'format' => 'currency'],
+        'volume_target' => ['label' => 'Volume target (cases)', 'format' => 'number'],
+        'volume_achievement_pct' => ['label' => 'Volume target achievement %', 'format' => 'percent'],
     ];
 
     public const GRAINS = ['day', 'week', 'month', 'quarter', 'year'];
@@ -465,6 +468,10 @@ class BIQueryService
         $wantsTarget = (bool) array_intersect($measures, ['target', 'achievement_pct', 'variance']);
         $targets = $wantsTarget && isset($dims[0]) && in_array($dims[0], self::GRAINS, true) ? $this->targetBuckets($f['from'], $f['to'], $dims[0]) : [];
         $orgTarget = $wantsTarget && ! $dims ? array_sum($this->targetBuckets($f['from'], $f['to'], 'year')) : null;
+        // Volume targets are company-wide case targets (metric "quantity"), kept apart from value targets.
+        $wantsVolume = (bool) array_intersect($measures, ['volume_target', 'volume_achievement_pct']);
+        $volTargets = $wantsVolume && isset($dims[0]) && in_array($dims[0], self::GRAINS, true) ? $this->targetBuckets($f['from'], $f['to'], $dims[0], 'quantity') : [];
+        $orgVolume = $wantsVolume && ! $dims ? array_sum($this->targetBuckets($f['from'], $f['to'], 'year', 'quantity')) : null;
 
         foreach (array_unique(array_merge(array_keys($rows), array_keys($ly))) as $key) {
             $r = ($rows[$key] ?? []) + (isset($ly[$key]) ? array_intersect_key($ly[$key], array_flip(['_k0', '_l0', '_k1', '_l1'])) : []);
@@ -477,6 +484,16 @@ class BIQueryService
             $r['target'] = $target;
             $r['achievement_pct'] = $target ? round($r['net_value'] / $target * 100, 1) : null;
             $r['variance'] = $target !== null ? round($r['net_value'] - $target, 2) : null;
+            // The whole month's target (not pro-rated to date), for run rate and "time gone" cards.
+            if (in_array('month_target', $measures, true) && ! $dims) {
+                $m = CarbonImmutable::parse($f['to']);
+                $r['month_target'] = array_sum($this->targetBuckets($m->startOfMonth()->toDateString(), $m->endOfMonth()->toDateString(), 'year')) ?: null;
+            }
+            if ($wantsVolume) {
+                $vt = $dims ? ($volTargets[(string) ($r['_k0'] ?? '')] ?? null) : ($orgVolume ?: null);
+                $r['volume_target'] = $vt;
+                $r['volume_achievement_pct'] = $vt ? round(($r['quantity'] ?? 0) / $vt * 100, 1) : null;
+            }
             foreach ($measures as $m) {
                 if (isset(self::DERIVED[$m])) {
                     $r[$m] = round(Formula::evaluate(self::DERIVED[$m]['formula'], $r), 4);
@@ -517,11 +534,11 @@ class BIQueryService
     }
 
     /** Approved organisation-level net sales targets spread over buckets by day (§11.8 target lines). */
-    private function targetBuckets(string $from, string $to, string $grain): array
+    private function targetBuckets(string $from, string $to, string $grain, string $metric = 'net_value'): array
     {
         $buckets = [];
         $targets = DB::table('targets')->where('company_id', SalesCompany::id())->where('status', 'approved')
-            ->where('metric', 'net_value')->whereIn('method', ['fixed', 'minimum'])->whereNull('dimensions')
+            ->where('metric', $metric)->whereIn('method', ['fixed', 'minimum'])->whereNull('dimensions')
             ->where('start_date', '<=', $to)->where('end_date', '>=', $from)->get();
         foreach ($targets as $t) {
             $s = CarbonImmutable::parse($t->start_date);
@@ -586,6 +603,10 @@ class BIQueryService
         }
         if (str_starts_with($m, 'custom:')) {
             return Formula::variables($this->customFormula(substr($m, 7)));
+        }
+
+        if (in_array($m, ['volume_target', 'volume_achievement_pct'], true)) {
+            return ['quantity'];
         }
 
         return isset(self::COMPARE[$m]) ? ['net_value'] : [];

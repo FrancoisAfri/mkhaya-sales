@@ -13,7 +13,7 @@ class Subscription extends Model
         'company_id', 'plan_code', 'status', 'current_period_start', 'current_period_end',
         // The commercial contract (SRS §19.1).
         'monthly_price', 'contract_start', 'contract_end', 'billing_frequency', 'named_users', 'storage_gb',
-        'integration_allowance', 'ai_token_allowance', 'change_request_hourly_rate', 'terms_note',
+        'integration_allowance', 'ai_token_allowance', 'change_request_hourly_rate', 'terms_note', 'payment_terms_days', 'notice_months',
     ];
 
     protected $casts = [

@@ -124,7 +124,7 @@ class SalesRecordController extends Controller
 
         return response()->streamDownload(function () use ($base) {
             $out = fopen('php://output', 'w');
-            fputcsv($out, ['Date', 'Customer code', 'Customer', 'Product code', 'Product', 'Quantity', 'UOM', 'Unit price', 'Gross', 'Discount', 'Net', 'Currency', 'Source ref']);
+            fputcsv($out, ['Date', 'Customer code', 'Customer', 'Product code', 'Product', 'Cases', 'UOM', 'Unit price', 'Gross', 'Discount', 'Net', 'Currency', 'Source ref']);
             $base->chunk(2000, function ($rows) use ($out) {
                 foreach ($rows as $r) {
                     fputcsv($out, [$r->transaction_date, $r->customer_code, $r->customer_name, $r->product_code, $r->product_name,

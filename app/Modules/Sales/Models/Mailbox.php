@@ -63,4 +63,10 @@ class Mailbox extends SalesModel
             && $local->diffInMinutes($at, true) < 180
             && (! $this->last_scheduled_on || $this->last_scheduled_on->toDateString() !== $local->toDateString());
     }
+
+    /** Method 2: files collected from a secure central repository rather than email. */
+    public function isRepository(): bool
+    {
+        return in_array($this->provider, ['sftp', 'sharepoint'], true);
+    }
 }

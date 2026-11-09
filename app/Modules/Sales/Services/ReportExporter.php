@@ -61,8 +61,8 @@ class ReportExporter
             default => (function () use ($result) {
                 $first = $result['rows'][0] ?? null;
                 $dims = $first ? array_values(array_filter(array_keys($first), fn ($k) => isset(SalesAnalytics::DIMENSIONS[$k]))) : [];
-                $cols = array_merge($dims, ['value', 'share'], $first && array_key_exists('previous', $first) ? ['previous', 'change', 'growth'] : []);
-                $labels = array_map(fn ($c) => SalesAnalytics::DIMENSIONS[$c] ?? ['value' => 'Value', 'share' => 'Share %', 'previous' => 'Comparison', 'change' => 'Change', 'growth' => 'Growth %'][$c], $cols);
+                $cols = array_merge($dims, ['value', 'cases', 'share'], $first && array_key_exists('previous', $first) ? ['previous', 'change', 'growth'] : []);
+                $labels = array_map(fn ($c) => SalesAnalytics::DIMENSIONS[$c] ?? ['value' => 'Value', 'cases' => 'Cases', 'share' => 'Share %', 'previous' => 'Comparison', 'change' => 'Change', 'growth' => 'Growth %'][$c], $cols);
 
                 return [$labels, collect($result['rows'])->map(fn ($r) => array_map(fn ($c) => $r[$c] ?? null, $cols))->all()];
             })(),

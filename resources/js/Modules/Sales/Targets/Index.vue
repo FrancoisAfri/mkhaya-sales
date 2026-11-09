@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { router, useForm } from '@inertiajs/vue3'
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import RemoteSelect from '@/Components/Sales/RemoteSelect.vue'
 
 const props = defineProps<{
@@ -19,6 +19,18 @@ const blank = () => ({ name: '', metric: 'net_value', method: 'fixed', period_ty
 const dialog = ref(false)
 const editing = ref<any>(null)
 const form = useForm(blank())
+// Picking a period fills in its dates (they can still be changed).
+watch(() => form.period_type, (pt) => {
+  const y = today.getFullYear(), m = today.getMonth(), monday = new Date(today); monday.setDate(today.getDate() - ((today.getDay() + 6) % 7))
+  const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6)
+  const q = Math.floor(m / 3) * 3
+  const range: Record<string, [Date, Date]> = {
+    daily: [today, today], weekly: [monday, sunday], monthly: [new Date(y, m, 1), new Date(y, m + 1, 0)],
+    quarterly: [new Date(y, q, 1), new Date(y, q + 3, 0)], half_yearly: m < 6 ? [new Date(y, 0, 1), new Date(y, 6, 0)] : [new Date(y, 6, 1), new Date(y, 12, 0)],
+    year_to_date: [new Date(y, 0, 1), new Date(y, m + 1, 0)], annual: [new Date(y, 0, 1), new Date(y, 11, 31)],
+  }
+  if (range[pt] && !editing.value) [form.start_date, form.end_date] = range[pt].map(iso)
+})
 function open(t: any = null) {
   editing.value = t
   Object.assign(form, t ? { ...blank(), ...t, target_value: t.performance.target, dimensions: { ...(t.dimensions ?? {}) }, submit_now: false } : blank())
@@ -74,7 +86,7 @@ const perfColor: Record<string, string> = { achieved: 'success', on_track: 'info
             <VCol cols="12"><VTextField v-model="form.name" label="Name *" density="compact" variant="outlined" :error-messages="form.errors.name" /></VCol>
             <VCol cols="12" md="4"><VSelect v-model="form.metric" :items="Object.entries(metrics).map(([v, t]) => ({ value: v, title: t }))" label="What is measured" density="compact" variant="outlined" /></VCol>
             <VCol cols="12" md="4"><VSelect v-model="form.method" :items="Object.entries(methods).map(([v, t]) => ({ value: v, title: t }))" label="Rule" density="compact" variant="outlined" /></VCol>
-            <VCol cols="12" md="4"><VSelect v-model="form.period_type" :items="periods.map(p => ({ value: p, title: p.replace('_', ' ') }))" label="Period" density="compact" variant="outlined" /></VCol>
+            <VCol cols="12" md="4"><VSelect v-model="form.period_type" :items="periods.map(p => ({ value: p, title: p.replaceAll('_', ' ') }))" label="Period" density="compact" variant="outlined" /></VCol>
             <VCol v-if="form.metric === 'formula'" cols="12"><VTextField v-model="form.formula" label="Formula *" placeholder="net_value / quantity" density="compact" variant="outlined" :error-messages="form.errors.formula"
               hint="Numbers, + - * / ( ) and: net_value, gross_value, quantity, discount, active_customers, transactions" persistent-hint /></VCol>
             <VAlert v-if="form.method === 'growth'" type="info" variant="tonal" density="compact" class="mx-2 mb-2">Enter the target as a % growth on the same period last year, e.g. 8 for +8%.</VAlert>

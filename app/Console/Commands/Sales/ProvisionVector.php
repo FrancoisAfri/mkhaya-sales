@@ -56,10 +56,14 @@ class ProvisionVector extends Command
             'contract_start' => $start,
             'contract_end' => $start->addMonths(12)->subDay(),
             'billing_frequency' => 'monthly',
-            'change_request_hourly_rate' => 1250,
+            // Meeting 2026-11-09: no amount for additional work; 30-day payment terms; 3 calendar months' notice.
+            'change_request_hourly_rate' => null,
+            'payment_terms_days' => 30,
+            'notice_months' => 3,
             'terms_note' => 'R35,000/month excl. VAT, 12 months. Hosting and initial implementation included; '
-                .'historical migration up to 12 months; additional development R1,250/hour excl. VAT. '
-                .'Named users, storage and AI allowances to be confirmed before production activation.',
+                .'historical migration up to 12 months. Report delivery by email (method 1) or from a secure central repository (method 2). '
+                .'Payment within 30 days of invoice; either party may end the agreement on 3 calendar months\' written notice. '
+                .'Additional work quoted separately on request. Named users, storage and AI allowances to be confirmed before production activation.',
         ]);
         $this->info("Vector Logistics: company #{$vector->id}, contract {$start->toDateString()} → {$start->addMonths(12)->subDay()->toDateString()}");
 

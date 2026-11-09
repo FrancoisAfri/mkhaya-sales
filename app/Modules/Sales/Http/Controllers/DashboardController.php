@@ -67,8 +67,12 @@ class DashboardController extends Controller
         abort_unless($request->user()->can('dashboards.view'), 403);
         $f = $this->query->filters($request);
 
+        // Forecast horizon in months (meeting 2026-11-09): 1, 2, 3, 6, 9, 12, 18 or any custom 1–36.
+        $horizon = max(1, min(36, (int) $request->query('months', 3)));
+
         return Inertia::render('Modules/Sales/Forecast/Index', [
-            'forecast' => $forecast->monthly($f, $request->user()),
+            'forecast' => $forecast->monthly($f, $request->user(), $horizon),
+            'horizon' => $horizon,
             'products' => collect($this->analytics->grouped(array_merge($f, ['from' => now()->subMonths(3)->startOfMonth()->toDateString()]), $request->user(), ['product'], 'net_value', 'previous_year', 15)['rows']),
             'filters' => $f,
             'options' => $this->query->filterOptions($f ?? []),

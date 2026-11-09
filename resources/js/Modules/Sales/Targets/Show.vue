@@ -5,7 +5,7 @@ import { computed } from 'vue'
 import RemoteSelect from '@/Components/Sales/RemoteSelect.vue'
 
 const props = defineProps<{ target: any; row: any; steps: { step: number; approvers: string[] }[]; canApprove: boolean; metrics: Record<string, string>; dimensions: Record<string, string>; options: Record<string, any[]>
-  children: any[]; reconciliation: { children: number; allocated: number; parent: number; difference: number; balanced: boolean } | null; canAllocate: boolean }>()
+  breakdown: any[]; breakdownBy: string; children: any[]; reconciliation: { children: number; allocated: number; parent: number; difference: number; balanced: boolean } | null; canAllocate: boolean }>()
 const optKey: Record<string, string> = { customer_id: 'customers', customer_group_id: 'customer_groups', product_id: 'products', category_id: 'categories', brand_id: 'brands',
   region_id: 'regions', business_unit_id: 'business_units', sales_team_id: 'sales_teams', salesperson_id: 'salespeople', distribution_centre_id: 'distribution_centres' }
 const alloc = useForm({ dimension: 'region_id', method: 'historical', members: [] as number[], given: {} as Record<number, number | null> })
@@ -14,9 +14,12 @@ const memberItems = computed(() => props.options[optKey[alloc.dimension]] ?? [])
 const givenSum = computed(() => alloc.members.reduce((a, id) => a + Number(alloc.given[id] ?? 0), 0))
 function allocateAll() { alloc.members = memberItems.value.map((o: any) => o.value) }
 const t = props.target, p = props.row.performance
+const byOptions = [['week', 'Weeks'], ['month', 'Months'], ['quarter', 'Quarters'], ['year_to_date', 'Year to date']]
+const showBy = (by: string) => router.get(location.pathname, { by }, { preserveScroll: true, preserveState: true, only: ['breakdown', 'breakdownBy'] })
+const achColor = (a: number | null) => a === null ? undefined : a >= 100 ? '#2E7D32' : a >= 90 ? '#E4A800' : '#C62828'
 const isMoney = t.metric.includes('value') && !['growth', 'composite'].includes(t.method)
 const unit = t.method === 'growth' ? '%' : t.method === 'composite' ? ' pts' : ''
-const fmt = (n: any) => n === null || n === undefined ? '—' : (isMoney ? 'R ' : '') + Number(n).toLocaleString('en-ZA', { maximumFractionDigits: 2 }) + unit
+const fmt = (n: any) => n === null || n === undefined ? '—' : (isMoney ? 'R ' : '') + Number(n).toLocaleString('en-ZA', { maximumFractionDigits: isMoney ? 0 : 2 }) + unit
 const decide = useForm({ decision: 'approve', comment: '' })
 const revise = useForm({ target_value: t.target_value, target_value_max: t.target_value_max, reason: '' })
 const perfColor: Record<string, string> = { achieved: 'success', on_track: 'info', at_risk: 'warning', behind: 'error', breached: 'error', not_started: 'default' }
@@ -39,6 +42,25 @@ function send(decision: string) { decide.decision = decision; decide.post(`/sale
       </VCol>
     </VRow>
     <VProgressLinear :model-value="Math.min(100, p.achievement ?? 0)" :color="perfColor[p.status]" height="22" rounded class="mb-6"><strong>{{ p.status.replace('_', ' ') }} · {{ p.days_left }} days left</strong></VProgressLinear>
+
+    <VCard v-if="breakdown.length" class="mb-6">
+      <div class="d-flex flex-wrap align-center justify-space-between gap-3 pa-5 pb-2">
+        <div><div class="text-subtitle-1 font-weight-bold">Target by period</div><div class="text-caption text-medium-emphasis">The target spread evenly over its days; year to date adds each month to the ones before it.</div></div>
+        <VBtnToggle :model-value="breakdownBy" mandatory density="compact" variant="outlined" color="primary" divided>
+          <VBtn v-for="[k, l] in byOptions" :key="k" :value="k" size="small" @click="showBy(k)">{{ l }}</VBtn>
+        </VBtnToggle>
+      </div>
+      <VTable density="comfortable" hover>
+        <thead><tr><th>Period</th><th class="text-end">Target</th><th class="text-end">Actual</th><th class="text-end">Variance</th><th style="width: 28%">Achievement</th></tr></thead>
+        <tbody>
+          <tr v-for="r in breakdown" :key="r.from">
+            <td>{{ r.label }}</td><td class="text-end">{{ fmt(r.target) }}</td><td class="text-end">{{ fmt(r.actual) }}</td>
+            <td class="text-end" :style="{ color: r.variance === null ? undefined : r.variance >= 0 ? '#2E7D32' : '#C62828' }">{{ fmt(r.variance) }}</td>
+            <td><div v-if="r.achievement !== null" class="d-flex align-center gap-2"><VProgressLinear :model-value="Math.min(100, r.achievement)" :color="achColor(r.achievement)" height="8" rounded /><span class="text-caption" style="min-width: 48px">{{ r.achievement }}%</span></div><span v-else class="text-caption text-medium-emphasis">not started</span></td>
+          </tr>
+        </tbody>
+      </VTable>
+    </VCard>
 
     <VRow>
       <VCol cols="12" md="6">

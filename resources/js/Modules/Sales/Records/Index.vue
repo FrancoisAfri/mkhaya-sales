@@ -19,7 +19,7 @@ const num = (n: any) => Number(n ?? 0).toLocaleString('en-ZA', { maximumFraction
 const exportUrl = computed(() => '/sales/records/export?' + new URLSearchParams(Object.entries(props.filters).map(([k, v]) => [k, String(v)])).toString())
 const headers = [
   { title: 'Date', key: 'transaction_date' }, { title: 'Customer', key: 'customer' }, { title: 'Product', key: 'product' },
-  { title: 'Qty', key: 'quantity', align: 'end' as const }, { title: 'Gross', key: 'gross_value', align: 'end' as const },
+  { title: 'Cases', key: 'quantity', align: 'end' as const }, { title: 'Gross', key: 'gross_value', align: 'end' as const },
   { title: 'Net', key: 'net_value', align: 'end' as const }, { title: 'Source ref', key: 'external_id' },
 ]
 </script>
@@ -40,7 +40,7 @@ const headers = [
     <FilterBar url="/sales/records" :filters="filters" :options="options" />
 
     <VRow class="mb-2">
-      <VCol v-for="k in [['Net sales', money(totals.net_value)], ['Gross sales', money(totals.gross_value)], ['Quantity', num(totals.quantity)], ['Customers', num(totals.customers)], ['Products', num(totals.products)], ['Records', num(totals.rows)]]" :key="k[0]" cols="6" md="2">
+      <VCol v-for="k in [['Net sales', money(totals.net_value)], ['Gross sales', money(totals.gross_value)], ['Cases', num(totals.quantity)], ['Customers', num(totals.customers)], ['Products', num(totals.products)], ['Records', num(totals.rows)]]" :key="k[0]" cols="6" md="2">
         <VCard elevation="0" border rounded="lg"><VCardText class="py-3"><div class="text-caption text-medium-emphasis">{{ k[0] }}</div><div class="text-h6">{{ k[1] }}</div></VCardText></VCard>
       </VCol>
     </VRow>

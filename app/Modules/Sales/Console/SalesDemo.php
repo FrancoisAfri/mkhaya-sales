@@ -18,7 +18,7 @@ use Illuminate\Support\Str;
  */
 class SalesDemo extends Command
 {
-    protected $signature = 'sales:demo {--email=demo@salesdemo.test} {--password=}';
+    protected $signature = 'sales:demo {--email=demo@salesdemo.test} {--password=} {--master-only : Refresh groups, categories, products and targets without touching sales}';
 
     protected $description = 'Create or refresh the "Demo Foods" demonstration company';
 
@@ -36,24 +36,28 @@ class SalesDemo extends Command
         $admin = \App\Core\User\Models\User::where('company_id', $company->id)->orderBy('id')->first();
 
         $tenants->run($company->id, function () use ($company, $admin) {
+            if ($this->option('master-only')) {
+                $this->masterData($company->id);
+                $this->targets($company->id, $admin->id);
+
+                return;
+            }
             DB::table('sales_records')->where('company_id', $company->id)->delete();
             $regions = collect(['Gauteng', 'Western Cape', 'KwaZulu-Natal', 'Eastern Cape'])->map(fn ($n) => Models\Region::firstOrCreate(['name' => $n], ['code' => strtoupper(substr($n, 0, 3))]));
-            $groups = collect(['Modern trade', 'Wholesale', 'Independent', 'Food service'])->map(fn ($n) => Models\CustomerGroup::firstOrCreate(['name' => $n]));
-            $cats = collect(['Baking', 'Desserts', 'Pizza', 'Decorations'])->map(fn ($n) => Models\ProductCategory::firstOrCreate(['name' => $n]));
+            $cats = collect(['Pizza', 'Frozen Meals', 'Cakes'])->map(fn ($n) => Models\ProductCategory::firstOrCreate(['name' => $n]));
             $brands = collect(['Oven Gold', 'Sweet Spoon', 'Crust & Co'])->map(fn ($n) => Models\ProductBrand::firstOrCreate(['name' => $n]));
 
             $products = collect(range(1, 18))->map(fn ($i) => Models\Product::updateOrCreate(['product_code' => sprintf('P%03d', $i)], [
-                'product_name' => ['Pizza base 2-pack', 'Custard powder 1kg', 'Baking powder 100g', 'Vanilla essence', 'Cake mix chocolate', 'Cake mix vanilla',
-                    'Icing sugar 500g', 'Sprinkles rainbow', 'Instant pudding caramel', 'Jelly strawberry', 'Yeast sachets', 'Cornflour 500g',
-                    'Pizza sauce', 'Cheesecake mix', 'Muffin mix', 'Food colouring set', 'Gelatine 40g', 'Brownie mix'][$i - 1],
-                'category_id' => $cats[$i % 4]->id, 'brand_id' => $brands[$i % 3]->id, 'is_active' => true, 'needs_review' => false,
+                'product_name' => self::PRODUCTS[$i - 1][0], 'brand_id' => $brands[$i % 3]->id, 'is_active' => true, 'needs_review' => false,
             ]));
             $customers = collect(range(1, 24))->map(fn ($i) => Models\Customer::updateOrCreate(['customer_code' => sprintf('C%04d', $i)], [
                 'customer_name' => ['Spar', 'Checkers', 'Pick n Pay', 'Makro', 'Food Lover\'s', 'Boxer', 'Shoprite', 'Woolworths'][$i % 8] . ' ' . ['Rosebank', 'Fourways', 'Claremont', 'Umhlanga', 'Gqeberha', 'Sandton', 'Durbanville', 'Midrand'][($i * 3) % 8] . ($i > 16 ? ' II' : ''),
-                'customer_group_id' => $groups[$i % 4]->id, 'region_id' => $regions[$i % 4]->id, 'is_active' => true, 'needs_review' => false,
+                'region_id' => $regions[$i % 4]->id, 'is_active' => true, 'needs_review' => false,
                 ...self::location(['Rosebank', 'Fourways', 'Claremont', 'Umhlanga', 'Gqeberha', 'Sandton', 'Durbanville', 'Midrand'][($i * 3) % 8], $i),
             ]));
 
+            $this->masterData($company->id);
+            $products = $products->map->fresh();
             $end = CarbonImmutable::today();
             $rows = [];
             mt_srand(42);
@@ -66,7 +70,7 @@ class SalesDemo extends Command
                 foreach ($customers->random(9) as $c) {
                     $p = $products->random();
                     $declining = in_array($c->customer_code, ['C0003', 'C0011'], true) && $d->gt($end->subMonths(4));
-                    $growing = $p->category_id === $cats[2]->id;
+                    $growing = $p->category_id === $cats[0]->id;
                     $qty = max(1, (int) round(mt_rand(4, 40) * $season * $trend * ($declining ? 0.35 : 1) * ($growing ? 1.3 : 1)));
                     $price = 30 + ($p->id % 7) * 12;
                     $rows[] = ['company_id' => $c->company_id, 'transaction_date' => $d->toDateString(), 'customer_id' => $c->id, 'product_id' => $p->id,
@@ -89,20 +93,68 @@ class SalesDemo extends Command
             Models\TargetApprovalRule::firstOrCreate(['name' => 'Sales managers sign off'], ['step' => 1, 'approver_type' => 'role', 'approver_role' => 'sales manager']);
             Models\TargetApprovalRule::firstOrCreate(['name' => 'Executive for targets above R1m'], ['step' => 2, 'min_value' => 1000000, 'approver_type' => 'role', 'approver_role' => 'administrator']);
 
-            $monthSales = (float) DB::table('sales_records')->where('company_id', $company->id)->whereBetween('transaction_date', [$end->subMonthNoOverflow()->startOfMonth(), $end->subMonthNoOverflow()->endOfMonth()])->sum('net_value');
-            foreach ([
-                ['National net sales — ' . $end->format('F Y'), 'net_value', round($monthSales * 1.06, -3), null],
-                ['Pizza category — ' . $end->format('F Y'), 'net_value', round($monthSales * 0.3, -3), ['category_id' => $cats[2]->id]],
-                ['Gauteng cases — ' . $end->format('F Y'), 'quantity', 2500, ['region_id' => $regions[0]->id]],
-            ] as [$name, $metric, $value, $dims]) {
-                Models\Target::updateOrCreate(['name' => $name], ['metric' => $metric, 'method' => 'fixed', 'period_type' => 'monthly', 'start_date' => $end->startOfMonth(),
-                    'end_date' => $end->endOfMonth(), 'target_value' => $value, 'dimensions' => $dims, 'status' => 'approved', 'approved_at' => now(), 'created_by' => $admin->id]);
-            }
+            $this->targets($company->id, $admin->id);
         });
 
         $this->info('Demo Foods ready: ' . DB::table('sales_records')->where('company_id', $company->id)->count() . ' sales rows.');
 
         return self::SUCCESS;
+    }
+
+    /** Demo products: name and category (Dr. Oetker-style frozen pizza, frozen meals and cakes). */
+    public const PRODUCTS = [
+        ['Pizza base 2-pack', 'Pizza'], ['Beef lasagne 400g', 'Frozen Meals'], ['Butter chicken 400g', 'Frozen Meals'], ['Macaroni cheese 350g', 'Frozen Meals'],
+        ['Chocolate cake', 'Cakes'], ['Vanilla sponge cake', 'Cakes'], ['Carrot cake', 'Cakes'], ['Spaghetti bolognese 400g', 'Frozen Meals'],
+        ['Cottage pie 400g', 'Frozen Meals'], ['Chicken curry and rice 400g', 'Frozen Meals'], ['Ristorante Margherita pizza', 'Pizza'], ['Ristorante Pepperoni pizza', 'Pizza'],
+        ['Pizza sauce', 'Pizza'], ['Baked cheesecake', 'Cakes'], ['Blueberry muffins 6-pack', 'Cakes'], ['Pizza Tradizionale Funghi', 'Pizza'],
+        ['Four cheese pizza', 'Pizza'], ['Chocolate brownies', 'Cakes'],
+    ];
+
+    /** Retail groups by store banner; everything else is an independent. */
+    public const GROUPS = ['Pick n Pay' => 'Pick n Pay Group', 'Boxer' => 'Pick n Pay Group', 'Shoprite' => 'Shoprite Checkers Group',
+        'Checkers' => 'Shoprite Checkers Group', 'Spar' => 'Spar Group'];
+
+    /** Groups, categories and product names as agreed for the demo (meeting 2026-11-09). Sales rows are untouched. */
+    private function masterData(int $companyId): void
+    {
+        $groups = collect(['Pick n Pay Group', 'Shoprite Checkers Group', 'Spar Group', 'Other Independents'])
+            ->mapWithKeys(fn ($n) => [$n => Models\CustomerGroup::firstOrCreate(['name' => $n])->id]);
+        foreach (Models\Customer::where('company_id', $companyId)->get() as $c) {
+            $banner = collect(array_keys(self::GROUPS))->first(fn ($b) => str_starts_with($c->customer_name, $b));
+            $c->update(['customer_group_id' => $groups[$banner ? self::GROUPS[$banner] : 'Other Independents']]);
+        }
+        Models\CustomerGroup::whereNotIn('id', $groups->values())->delete();
+
+        $cats = collect(['Pizza', 'Frozen Meals', 'Cakes'])->mapWithKeys(fn ($n) => [$n => Models\ProductCategory::firstOrCreate(['name' => $n])->id]);
+        foreach (self::PRODUCTS as $i => [$name, $cat]) {
+            Models\Product::where('product_code', sprintf('P%03d', $i + 1))->update(['product_name' => $name, 'category_id' => $cats[$cat]]);
+        }
+        Models\Target::whereNotNull('dimensions')->get()->filter(fn ($t) => isset($t->dimensions['category_id']) && ! $cats->contains($t->dimensions['category_id']))->each->delete();
+        Models\ProductCategory::whereNotIn('id', $cats->values())->delete();
+        \App\Modules\Sales\Services\BI\BIQueryService::invalidate($companyId);
+    }
+
+    /**
+     * Monthly company-wide targets from January to this month, in value (rand) and volume (cases):
+     * each past month a little above or below what was sold, this month 6% above last month.
+     */
+    private function targets(int $companyId, int $adminId): void
+    {
+        $end = CarbonImmutable::parse(DB::table('sales_records')->where('company_id', $companyId)->where('status', 'active')->max('transaction_date') ?? 'today');
+        $sum = fn ($col, $m) => (float) DB::table('sales_records')->where('company_id', $companyId)->where('status', 'active')
+            ->whereBetween('transaction_date', [$m->startOfMonth()->toDateString(), $m->endOfMonth()->toDateString()])->sum($col);
+        $factors = [1.04, 0.97, 1.06, 1.02, 0.95, 1.08, 1.01, 0.98, 1.05, 1.03, 1.06, 1.04];
+        for ($m = $end->startOfYear(); $m->lte($end); $m = $m->addMonth()) {
+            $isNow = $m->format('Y-m') === $end->format('Y-m');
+            $basis = $isNow ? $m->subMonthNoOverflow() : $m;
+            $f = $isNow ? 1.06 : $factors[$m->month - 1];
+            foreach ([['National net sales — ', 'net_value', round($sum('net_value', $basis) * $f, -3)], ['National volume (cases) — ', 'quantity', round($sum('quantity', $basis) * $f, -1)]] as [$label, $metric, $value]) {
+                Models\Target::updateOrCreate(['name' => $label . $m->format('F Y')], ['metric' => $metric, 'method' => 'fixed', 'period_type' => 'monthly',
+                    'start_date' => $m->startOfMonth(), 'end_date' => $m->endOfMonth(), 'target_value' => $value, 'dimensions' => null,
+                    'status' => 'approved', 'approved_at' => now(), 'created_by' => $adminId]);
+            }
+        }
+        \App\Modules\Sales\Services\BI\BIQueryService::invalidate($companyId);
     }
 
     /** Real suburb coordinates (with a small offset per store) so the demo maps have something to show. */

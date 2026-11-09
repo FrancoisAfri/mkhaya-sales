@@ -13,7 +13,7 @@ class Target extends SalesModel
     ];
     public const METHODS = ['fixed' => 'Reach the value', 'minimum' => 'At least (minimum threshold)', 'maximum' => 'At most (maximum threshold)', 'range' => 'Within a range',
         'growth' => 'Growth % on the same period last year', 'composite' => 'Composite score of its child targets (weighted)'];
-    public const PERIODS = ['daily', 'weekly', 'monthly', 'quarterly', 'half_yearly', 'annual', 'financial_year', 'custom'];
+    public const PERIODS = ['daily', 'weekly', 'monthly', 'quarterly', 'half_yearly', 'year_to_date', 'annual', 'financial_year', 'custom'];
     public const DIMENSIONS = [
         'customer_id' => 'Customer', 'customer_group_id' => 'Customer group', 'product_id' => 'Product', 'category_id' => 'Product category',
         'brand_id' => 'Brand', 'region_id' => 'Region', 'business_unit_id' => 'Business unit', 'sales_team_id' => 'Sales team',

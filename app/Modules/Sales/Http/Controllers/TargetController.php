@@ -9,6 +9,7 @@ use App\Modules\Sales\Models\TargetApprovalRule;
 use App\Modules\Sales\Services\SalesQuery;
 use App\Modules\Sales\Services\TargetService;
 use Illuminate\Http\RedirectResponse;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -58,6 +59,9 @@ class TargetController extends Controller
             'row' => $this->targets->row($target, $request->user()),
             'steps' => $this->targets->steps($target)->map(fn ($rules, $i) => ['step' => $i + 1, 'approvers' => $rules->map(fn ($r) => $this->describe($r))->all()]),
             'canApprove' => $this->targets->canApprove($request->user(), $target),
+            'breakdownBy' => $by = in_array($request->query('by'), ['week', 'month', 'quarter', 'year_to_date'], true) ? $request->query('by')
+                : (CarbonImmutable::parse($target->start_date)->diffInDays(CarbonImmutable::parse($target->end_date)) > 45 ? 'month' : 'week'),
+            'breakdown' => $this->targets->breakdown($target, $by, $request->user()),
             'children' => $target->children()->get()->map(fn (Target $c) => $this->targets->row($c, $request->user())),
             'reconciliation' => $this->targets->reconciliation($target),
             'canAllocate' => $request->user()->can('targets.create') && $target->status !== 'archived',

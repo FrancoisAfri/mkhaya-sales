@@ -43,7 +43,7 @@ class SalesNavigationSeeder extends Seeder
         ['code' => 'sales_data_centre', 'name' => 'Data Import Centre', 'icon' => 'file-import', 'path' => '/sales/imports', 'ribbons' => [
             ['Import centre', 'sales/imports'],
             ['File layouts', 'sales/layouts'],
-            ['Mailbox setup', 'sales/mailboxes'],
+            ['Report sources', 'sales/mailboxes'],
         ]],
     ];
 

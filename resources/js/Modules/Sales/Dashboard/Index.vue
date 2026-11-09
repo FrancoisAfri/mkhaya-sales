@@ -60,7 +60,7 @@ const empty = computed(() => !props.kpis.last_sale_date)
       <VCol cols="6" md="2"><VCard elevation="0" border rounded="lg"><VCardText><div class="text-caption text-medium-emphasis">Month to date</div><div class="text-h5">{{ money(kpis.mtd) }}</div><div class="text-caption text-medium-emphasis">Month-end estimate {{ money(kpis.month_end_forecast) }}</div></VCardText></VCard></VCol>
       <VCol cols="6" md="2"><VCard elevation="0" border rounded="lg"><VCardText><div class="text-caption text-medium-emphasis">Year to date</div><div class="text-h5">{{ money(kpis.ytd) }}</div><div class="text-caption" :class="tone(kpis.ytd_growth)">{{ pct(kpis.ytd_growth) }} vs {{ money(kpis.previous_ytd) }}</div></VCardText></VCard></VCol>
       <VCol cols="6" md="2"><VCard elevation="0" border rounded="lg"><VCardText><div class="text-caption text-medium-emphasis">Same period last year</div><div class="text-h5">{{ money(kpis.previous_year) }}</div><div class="text-caption">Variance {{ money(kpis.total - kpis.previous_year) }}</div></VCardText></VCard></VCol>
-      <VCol cols="6" md="2"><VCard elevation="0" border rounded="lg"><VCardText><div class="text-caption text-medium-emphasis">Active customers / qty</div><div class="text-h5">{{ num(kpis.customers) }}</div><div class="text-caption">{{ num(kpis.quantity) }} units</div></VCardText></VCard></VCol>
+      <VCol cols="6" md="2"><VCard elevation="0" border rounded="lg"><VCardText><div class="text-caption text-medium-emphasis">Active customers / cases</div><div class="text-h5">{{ num(kpis.customers) }}</div><div class="text-caption">{{ num(kpis.quantity) }} cases</div></VCardText></VCard></VCol>
     </VRow>
 
     <template v-if="view === 'executive'">

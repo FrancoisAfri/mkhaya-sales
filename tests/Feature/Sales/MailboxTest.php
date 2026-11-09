@@ -94,6 +94,27 @@ class MailboxTest extends SalesTestCase
         $this->assertSame('healthy', $mailbox->fresh()->status);
     }
 
+    public function test_a_central_repository_file_is_collected_like_an_email(): void
+    {
+        Notification::fake();
+        [$co] = $this->tenant('Repo Co');
+        $source = $this->mailbox($co->id, ['provider' => 'sftp', 'mailbox_address' => 'vector', 'folder' => '/outgoing',
+            'credentials' => ['host' => 'sftp.vector.test', 'password' => 'x'], 'sender' => null, 'subject_pattern' => null, 'filename_pattern' => '*sales*']);
+        $this->assertTrue($source->isRepository());
+        $file = fn ($name, $id, $csv) => ['message_id' => $id, 'subject' => $name, 'from_email' => '', 'date' => now()->toIso8601String(),
+            'attachments' => [['name' => $name, 'bytes' => $csv]]];
+        $this->inbox = [
+            $file('daily_sales_20261107.csv', 'sftp:a', "Date,Customer,Product,Value\n2026-11-07,C1,P1,700\n"),
+            $file('stock_levels.csv', 'sftp:b', "Date,Customer,Product,Value\n2026-11-07,C1,P1,99999\n"),
+        ];
+
+        $run = app(MailboxService::class)->run($source->fresh(), 'schedule');
+        $this->assertSame('imported', $run->status, (string) $run->error);
+        $this->assertEquals(700, (float) SalesRecord::withoutGlobalScopes()->where('company_id', $co->id)->sum('net_value'), 'Only files matching the name rule are read.');
+        $this->assertSame('repository', \App\Modules\Sales\Models\ImportBatch::withoutGlobalScopes()->find($run->import_batch_id)->source);
+        $this->assertSame('duplicate', app(MailboxService::class)->run($source->fresh(), 'manual')->status);
+    }
+
     public function test_a_file_with_errors_waits_for_a_person(): void
     {
         [$co] = $this->tenant('Mail Review Co');

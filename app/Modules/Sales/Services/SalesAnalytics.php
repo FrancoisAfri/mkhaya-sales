@@ -22,7 +22,7 @@ class SalesAnalytics
         'day' => 'Day', 'week' => 'Week', 'month' => 'Month', 'quarter' => 'Quarter', 'year' => 'Year',
     ];
 
-    public const MEASURES = ['net_value' => 'Net sales', 'gross_value' => 'Gross sales', 'quantity' => 'Quantity', 'discount' => 'Discount', 'transactions' => 'Transactions'];
+    public const MEASURES = ['net_value' => 'Net sales', 'gross_value' => 'Gross sales', 'quantity' => 'Volume (cases)', 'discount' => 'Discount', 'transactions' => 'Transactions'];
 
     public function __construct(private SalesQuery $query) {}
 
@@ -127,6 +127,8 @@ class SalesAnalytics
                 $keys[] = "k{$i}";
             }
             $q->selectRaw($measure === 'transactions' ? 'count(*) as value' : "coalesce(sum(s.{$measure}),0) as value");
+            // Volume in cases travels with every value report (meeting 2026-11-09: cases and value, never units).
+            $q->selectRaw('coalesce(sum(s.quantity),0) as cases');
             if ($cap) {
                 $q->orderByRaw('value ' . ($order === 'asc' ? 'asc' : 'desc'))->limit($cap);
             }
@@ -159,6 +161,7 @@ class SalesAnalytics
             }
             $row['value'] = round((float) ($c->value ?? 0), 2);
             $row['share'] = $total ? round($row['value'] / $total * 100, 1) : 0;
+            $row['cases'] = round((float) ($c->cases ?? 0), 2);
             if ($compare !== 'none') {
                 $row['previous'] = round((float) ($p->value ?? 0), 2);
                 $row['change'] = round($row['value'] - $row['previous'], 2);

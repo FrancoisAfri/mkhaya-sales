@@ -57,13 +57,31 @@ const vals = computed(() => data.value?.values ?? {})
 const m0 = computed(() => props.widget.config?.measures?.[0] ?? v.value.defaults?.measures?.[0] ?? 'net_value')
 const m1 = computed(() => props.widget.config?.measures?.[1] ?? v.value.defaults?.measures?.[1])
 const f0 = computed(() => data.value?.formats?.[m0.value] ?? 'currency')
-const ach = computed(() => Number(vals.value.achievement_pct ?? (vals.value.target ? vals.value.net_value / vals.value.target * 100 : 0)))
+// Value targets (rand) or volume targets (cases): the same cards serve both.
+const isVolume = computed(() => [m0.value, m1.value].includes('volume_target') || m0.value === 'volume_achievement_pct')
+const tKey = computed(() => (isVolume.value ? 'volume_target' : 'target'))
+const aKey = computed(() => (isVolume.value ? 'quantity' : 'net_value'))
+const tFmt = computed(() => (isVolume.value ? 'number' : 'currency'))
+const ach = computed(() => {
+  const t = Number(vals.value[tKey.value] ?? 0)
+  const pct = isVolume.value ? vals.value.volume_achievement_pct : vals.value.achievement_pct
+  return Number(pct ?? (t ? Number(vals.value[aKey.value] ?? 0) / t * 100 : 0))
+})
+const monthDone = computed(() => (vals.value.month_target ? Number(vals.value.net_value ?? 0) / vals.value.month_target * 100 : 0))
+// Share of the month gone, measured to the latest day with sales (the same day the run rate uses).
+const monthGone = computed(() => {
+  const to = data.value?.period?.to ? new Date(data.value.period.to) : new Date()
+  const days = new Date(to.getFullYear(), to.getMonth() + 1, 0).getDate()
+  return { day: to.getDate(), days, pct: to.getDate() / days * 100, label: to.toLocaleDateString('en-ZA', { day: 'numeric', month: 'short' }) }
+})
 const status = (p: number) => (p >= 100 ? GOOD : p >= 80 ? AMBER : BAD)
 const statusText = (p: number) => (p >= 100 ? 'On or above target' : p >= 80 ? 'Close to target' : 'Below target')
 const runRate = computed(() => {
   const from = new Date(data.value?.period?.from), to = new Date(data.value?.period?.to)
   const days = to.getDate(), inMonth = new Date(to.getFullYear(), to.getMonth() + 1, 0).getDate()
-  return { forecast: (vals.value.net_value ?? 0) / Math.max(1, days) * inMonth, needed: vals.value.target ? Math.max(0, (vals.value.target - vals.value.net_value) / Math.max(1, inMonth - days)) : null, from }
+  // The full month's target, never the part pro-rated to date.
+  const t = vals.value.month_target ?? null
+  return { forecast: (vals.value.net_value ?? 0) / Math.max(1, days) * inMonth, needed: t ? Math.max(0, (t - vals.value.net_value) / Math.max(1, inMonth - days)) : null, target: t, from }
 })
 const sparkOption = computed(() => ({ grid: { left: 0, right: 0, top: 4, bottom: 0 }, xAxis: { type: 'category', show: false }, yAxis: { type: 'value', show: false, scale: true },
   series: [{ type: 'line', smooth: true, symbol: 'none', data: data.value?.spark ?? [], lineStyle: { width: 2, color: '#6A0DAD' }, areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: 'rgba(106,13,173,.25)' }, { offset: 1, color: 'rgba(106,13,173,0)' }]) } }] }))
@@ -150,9 +168,17 @@ const heat = (val: number, max: number) => `rgba(106,13,173,${Math.min(0.85, 0.0
             <div class="bi-kpi__note mt-2"><strong>{{ fmt(ach, 'percent') }}</strong> · {{ statusText(ach) }}</div>
           </div>
           <div v-else-if="widget.type === 'bullet' || widget.type === 'kpi_target'" class="bi-kpi">
-            <div class="bi-kpi__value">{{ fmt(widget.type === 'kpi_target' ? vals.target : vals.net_value) }}</div>
+            <div class="bi-kpi__value">{{ fmt(widget.type === 'kpi_target' ? vals[tKey] : vals[aKey], tFmt) }}<small v-if="isVolume" class="bi-kpi__unit"> cases</small></div>
             <div class="bi-bullet"><em style="width: 80%" /><em style="width: 100%" /><span :style="{ width: Math.min(120, ach) / 1.2 + '%', background: status(ach) }" /><i :style="{ left: 100 / 1.2 + '%' }" /></div>
-            <div class="bi-kpi__note">{{ widget.type === 'kpi_target' ? `Actual ${fmt(vals.net_value)}` : `Target ${fmt(vals.target)}` }} · <span :style="{ color: status(ach) }">{{ fmt(ach, 'percent') }} achieved</span></div>
+            <div class="bi-kpi__note"><template v-if="vals[tKey]">{{ widget.type === 'kpi_target' ? `Actual ${fmt(vals[aKey], tFmt)}` : `Target ${fmt(vals[tKey], tFmt)}` }} · <span :style="{ color: status(ach) }">{{ fmt(ach, 'percent') }} achieved</span></template><template v-else>No approved {{ isVolume ? 'volume' : 'sales' }} target for this period</template></div>
+          </div>
+          <div v-else-if="widget.type === 'month_elapsed'" class="bi-kpi">
+            <div class="bi-kpi__value">{{ Math.round(monthGone.pct) }}%<small class="bi-kpi__unit"> of month gone</small></div>
+            <div class="bi-bar"><span :style="{ width: monthGone.pct + '%', background: '#6A0DAD' }" /></div>
+            <div class="bi-kpi__lines">
+              <div>Day {{ monthGone.day }} of {{ monthGone.days }} · sales up to {{ monthGone.label }}</div>
+              <div v-if="vals.month_target"><b :style="{ color: monthDone >= monthGone.pct ? GOOD : BAD }">{{ fmt(monthDone, 'percent') }}</b> of the month's target sold</div>
+            </div>
           </div>
           <div v-else-if="widget.type === 'variance_card'" class="bi-kpi">
             <div class="bi-kpi__value" :style="{ color: (vals[m0] ?? 0) >= 0 ? GOOD : BAD }">{{ (vals[m0] ?? 0) >= 0 && f0 === 'percent' ? '+' : '' }}{{ fmt(vals[m0], f0) }}</div>
@@ -160,7 +186,11 @@ const heat = (val: number, max: number) => `rgba(106,13,173,${Math.min(0.85, 0.0
           </div>
           <div v-else-if="widget.type === 'run_rate_card'" class="bi-kpi">
             <div class="bi-kpi__value">{{ fmt(runRate.forecast) }}</div>
-            <div class="bi-kpi__note">Month-end at today's daily rate<template v-if="runRate.needed !== null"> · needs {{ fmt(runRate.needed) }}/day for target</template></div>
+            <div class="bi-kpi__lines">
+              <div>At the current daily rate</div>
+              <div v-if="runRate.target">Target {{ fmt(runRate.target) }} · <b :style="{ color: runRate.forecast >= runRate.target ? GOOD : BAD }">{{ fmt(runRate.forecast / runRate.target * 100, 'percent') }}</b></div>
+              <div v-if="runRate.needed">Needs {{ fmt(runRate.needed) }} a day from here</div>
+            </div>
           </div>
           <div v-else-if="widget.type === 'multi_kpi'" class="bi-multi">
             <div v-for="m in widget.config?.measures ?? []" :key="m"><small>{{ data.labels?.[m] }}</small><strong>{{ fmt(vals[m], data.formats?.[m]) }}</strong></div>
@@ -238,6 +268,8 @@ const heat = (val: number, max: number) => `rgba(106,13,173,${Math.min(0.85, 0.0
 .bi-fill { width: 100%; height: 100%; }
 .bi-kpi { display: flex; flex-direction: column; justify-content: center; height: 100%; padding: 0 4px; }
 .bi-kpi--center { align-items: center; }
+.bi-kpi__lines { font-size: 12px; color: #77778A; margin-top: 6px; line-height: 1.45; }
+.bi-kpi__unit { font-size: 13px; font-weight: 600; color: #8A8A99; letter-spacing: 0; }
 .bi-kpi__value { font-size: 28px; font-weight: 700; color: #16161F; letter-spacing: -.5px; line-height: 1.15; }
 .bi-kpi__note { font-size: 12px; color: #77778A; margin-top: 6px; display: flex; align-items: center; gap: 2px; flex-wrap: wrap; }
 .bi-spark { height: 38px; margin-top: 6px; }

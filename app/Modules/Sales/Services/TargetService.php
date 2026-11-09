@@ -203,6 +203,53 @@ class TargetService
     }
 
     /** The value of a target's measure (or formula) over a filter. */
+    /**
+     * A target broken into weeks, months or quarters, or as a running year-to-date total
+     * (meeting 2026-11-09). Each slice's target is the target spread evenly over its days.
+     */
+    public function breakdown(Target $t, string $by, ?User $user): array
+    {
+        if (in_array($t->method, ['composite', 'growth'], true) || in_array($t->metric, ['active_customers', 'formula'], true)) {
+            return [];   // not additive over time
+        }
+        $start = CarbonImmutable::parse($t->start_date);
+        $end = CarbonImmutable::parse($t->end_date);
+        $perDay = (float) $t->target_value / ((int) $start->diffInDays($end) + 1);
+        $today = CarbonImmutable::today();
+        $rows = [];
+        $cursor = $start;
+        $runTarget = $runActual = 0.0;
+        while ($cursor->lte($end) && count($rows) < 60) {
+            $sliceEnd = match ($by) {
+                'week' => $cursor->endOfWeek(),
+                'quarter' => $cursor->lastOfQuarter(),
+                default => $cursor->endOfMonth(),   // month and year_to_date
+            };
+            $sliceEnd = $sliceEnd->startOfDay()->min($end);
+            $days = (int) $cursor->diffInDays($sliceEnd) + 1;
+            $target = $perDay * $days;
+            $actual = $cursor->gt($today) ? null : $this->measure($t, array_filter(($t->dimensions ?? []) + ['from' => $cursor->toDateString(), 'to' => $sliceEnd->min($today)->toDateString()]), $user);
+            $runTarget += $target;
+            $runActual += (float) $actual;
+            [$tv, $av] = $by === 'year_to_date' ? [$runTarget, $actual === null ? null : $runActual] : [$target, $actual];
+            $rows[] = [
+                'label' => match ($by) {
+                    'week' => 'Week of ' . $cursor->format('j M'),
+                    'quarter' => $cursor->year . ' Q' . $cursor->quarter,
+                    'year_to_date' => $start->format('M') . ' – ' . $sliceEnd->format('M Y'),
+                    default => $cursor->format('M Y'),
+                },
+                'from' => $cursor->toDateString(), 'to' => $sliceEnd->toDateString(),
+                'target' => round($tv, 2), 'actual' => $av === null ? null : round($av, 2),
+                'achievement' => $av === null || $tv <= 0 ? null : round($av / $tv * 100, 1),
+                'variance' => $av === null ? null : round($av - $tv, 2),
+            ];
+            $cursor = $sliceEnd->addDay()->startOfDay();
+        }
+
+        return $rows;
+    }
+
     public function measure(Target $t, array $f, ?User $user): float
     {
         $one = function (string $m) use ($f, $user) {

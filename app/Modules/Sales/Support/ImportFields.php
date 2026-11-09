@@ -27,7 +27,7 @@ final class ImportFields
                 'customer_name' => ['label' => 'Customer name', 'type' => 'text', 'aliases' => ['customer', 'customer name', 'cust name', 'account name', 'acc name', 'sold to name', 'store', 'outlet']],
                 'product_code' => ['label' => 'Product code', 'type' => 'text', 'aliases' => ['product code', 'item code', 'item no', 'sku', 'article', 'material', 'material no', 'stock code', 'prod code']],
                 'product_name' => ['label' => 'Product description', 'type' => 'text', 'aliases' => ['product', 'product description', 'description', 'desc', 'item description', 'product name', 'material desc', 'material description', 'article description', 'item name']],
-                'quantity' => ['label' => 'Quantity', 'type' => 'number', 'aliases' => ['qty', 'quantity', 'units', 'cases', 'cartons', 'volume', 'ctns']],
+                'quantity' => ['label' => 'Quantity (cases)', 'type' => 'number', 'aliases' => ['qty', 'quantity', 'units', 'cases', 'cartons', 'volume', 'ctns']],
                 'unit_of_measure' => ['label' => 'Unit of measure', 'type' => 'text', 'aliases' => ['uom', 'unit', 'unit of measure']],
                 'unit_price' => ['label' => 'Unit price', 'type' => 'number', 'aliases' => ['unit price', 'price']],
                 'gross_value' => ['label' => 'Gross sales value', 'type' => 'number', 'aliases' => ['gross', 'gross sales', 'gross value', 'gross amount']],

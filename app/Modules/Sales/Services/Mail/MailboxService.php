@@ -60,7 +60,7 @@ class MailboxService
                     }
 
                     $batch = $this->engine->receive('sales', $a['name'], $a['bytes'], [
-                        'layout_id' => $mailbox->layout_id, 'source' => 'email', 'mailbox_id' => $mailbox->id, 'uploaded_by' => null,
+                        'layout_id' => $mailbox->layout_id, 'source' => $mailbox->isRepository() ? 'repository' : 'email', 'mailbox_id' => $mailbox->id, 'uploaded_by' => null,
                     ]);
                     $run->import_batch_id = $batch->id;
                     ProcessImport::run($batch, 'stage', null, $mailbox->auto_commit);

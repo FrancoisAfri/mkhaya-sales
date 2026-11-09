@@ -14,20 +14,22 @@ final class DashboardTemplates
         $w = fn ($type, $title, $config, $x, $y, $wd, $h) => compact('type', 'title', 'config', 'x', 'y') + ['w' => $wd, 'h' => $h];
 
         $executive = [
+            // Meeting 2026-11-09: value and cases side by side, never units; time gone replaces customers.
             $kpi('Total sales', ['net_value', 'growth_pct'], 0, 'mtd', 'kpi_sparkline'),
             $kpi('Sales target', ['target', 'net_value'], 2, 'mtd', 'kpi_target'),
-            $kpi('Target achievement', ['achievement_pct'], 4, 'mtd', 'gauge'),
-            $kpi('Year-on-year growth', ['growth_pct', 'last_year'], 6, 'ytd', 'variance_card'),
-            $kpi('Month-end forecast', ['net_value'], 8, 'mtd', 'run_rate_card'),
-            $kpi('Active customers', ['active_customers'], 10, 'mtd'),
-            $w('combo_column_line', 'Monthly sales: actual vs target vs last year', ['kind' => 'time', 'measures' => ['net_value', 'target', 'last_year'], 'grain' => 'month', 'period' => 'last_12_months'], 0, 3, 6, 8),
-            $w('donut', 'Sales by customer group', ['kind' => 'category', 'measures' => ['net_value'], 'dimension' => 'customer_group', 'period' => 'ytd', 'top' => 6, 'other' => true], 6, 3, 3, 8),
-            $w('treemap', 'Sales by category and product', ['kind' => 'treemap', 'measures' => ['net_value'], 'dimension' => 'category', 'series' => 'product', 'period' => 'ytd', 'top' => 8], 9, 3, 3, 8),
+            $kpi('Volume (cases)', ['volume_target', 'quantity'], 4, 'mtd', 'bullet'),
+            $kpi('Cases target', ['volume_target', 'quantity'], 6, 'mtd', 'kpi_target'),
+            $kpi('Month-end forecast', ['net_value', 'month_target'], 8, 'mtd', 'run_rate_card'),
+            $kpi('Time elapsed', ['net_value', 'month_target'], 10, 'mtd', 'month_elapsed'),
+            // Year to date, January to the latest month — the same months as "Performance by month" below.
+            $w('combo_column_line', 'Monthly sales: actual vs target (year to date)', ['kind' => 'time', 'measures' => ['net_value', 'target'], 'grain' => 'month', 'period' => 'ytd'], 0, 3, 6, 8),
+            $w('donut', 'Sales by retail group', ['kind' => 'category', 'measures' => ['net_value'], 'dimension' => 'customer_group', 'period' => 'ytd', 'top' => 6, 'other' => true], 6, 3, 3, 8),
+            $w('pie', 'Sales by category', ['kind' => 'category', 'measures' => ['net_value'], 'dimension' => 'category', 'period' => 'ytd', 'top' => 6, 'other' => true], 9, 3, 3, 8),
             $w('bar_ranked', 'Top 10 customers', ['kind' => 'category', 'measures' => ['net_value'], 'dimension' => 'customer', 'period' => 'ytd', 'top' => 10], 0, 11, 4, 9),
             $w('bar_ranked', 'Top 10 products', ['kind' => 'category', 'measures' => ['net_value'], 'dimension' => 'product', 'period' => 'ytd', 'top' => 10], 4, 11, 4, 9),
             $w('diverging_bar', 'Customer growth and decline vs last year', ['kind' => 'category', 'measures' => ['growth_pct'], 'dimension' => 'customer', 'period' => 'ytd', 'top' => 12], 8, 11, 4, 9),
             $w('column_clustered', 'Sales by product category vs last year', ['kind' => 'category', 'measures' => ['net_value', 'last_year'], 'dimension' => 'category', 'period' => 'ytd', 'top' => 10], 0, 20, 6, 8),
-            $w('heatmap_matrix', 'Regional performance by month', ['kind' => 'matrix', 'measures' => ['net_value'], 'dimension' => 'region', 'series' => 'month', 'period' => 'last_12_months', 'top' => 10], 6, 20, 6, 8),
+            $w('heatmap_matrix', 'Performance by month (year to date, by region)', ['kind' => 'matrix', 'measures' => ['net_value'], 'dimension' => 'region', 'series' => 'month', 'period' => 'ytd', 'top' => 10], 6, 20, 6, 8),
             $w('forecast_line', 'Forecast versus target', ['kind' => 'forecast', 'period' => 'ytd'], 0, 28, 6, 8),
             $w('waterfall', 'What moved sales vs last year (last month)', ['kind' => 'waterfall', 'dimension' => 'customer', 'period' => 'last_month', 'top' => 8], 6, 28, 6, 8),
             $w('smart_narrative', 'Summary', ['kind' => 'narrative', 'period' => 'mtd'], 0, 36, 6, 6),
@@ -50,7 +52,7 @@ final class DashboardTemplates
         $product = [
             $kpi('Products sold', ['active_products'], 0, 'ytd'),
             $kpi('Average selling price', ['avg_selling_price'], 2, 'ytd'),
-            $kpi('Quantity', ['quantity', 'growth_pct'], 4, 'ytd', 'kpi_sparkline'),
+            $kpi('Volume (cases)', ['quantity', 'growth_pct'], 4, 'ytd', 'kpi_sparkline'),
             $w('sunburst', 'Category → product', ['kind' => 'treemap', 'measures' => ['net_value'], 'dimension' => 'category', 'series' => 'product', 'period' => 'ytd', 'top' => 6], 6, 0, 6, 9),
             $w('column_stacked', 'Monthly sales by category', ['kind' => 'time', 'measures' => ['net_value'], 'series' => 'category', 'grain' => 'month', 'period' => 'last_12_months', 'top' => 6], 0, 3, 6, 8),
             $w('bar_ranked', 'Product ranking', ['kind' => 'category', 'measures' => ['net_value'], 'dimension' => 'product', 'period' => 'ytd', 'top' => 15], 6, 9, 6, 9),
@@ -61,7 +63,7 @@ final class DashboardTemplates
         $target = [
             $kpi('Target achievement', ['achievement_pct'], 0, 'mtd', 'gauge'),
             $kpi('Variance to target', ['variance', 'target'], 2, 'mtd', 'variance_card'),
-            $kpi('Required run rate', ['net_value'], 4, 'mtd', 'run_rate_card'),
+            $kpi('Required run rate', ['net_value', 'month_target'], 4, 'mtd', 'run_rate_card'),
             $kpi('Target', ['target', 'net_value'], 6, 'mtd', 'bullet'),
             $kpi('Year to date vs target', ['achievement_pct'], 8, 'ytd', 'progress'),
             $kpi('Target health', ['achievement_pct'], 10, 'mtd', 'traffic_light'),
@@ -97,7 +99,7 @@ final class DashboardTemplates
 
         $forecasting = [
             $w('forecast_line', 'Forecast with likely range', ['kind' => 'forecast', 'period' => 'ytd'], 0, 0, 8, 9),
-            $kpi('Month-end estimate', ['net_value'], 8, 'mtd', 'run_rate_card'),
+            $kpi('Month-end estimate', ['net_value', 'month_target'], 8, 'mtd', 'run_rate_card'),
             $kpi('Achievement so far', ['achievement_pct'], 10, 'mtd', 'gauge'),
             $w('smart_narrative', 'What the numbers say', ['kind' => 'narrative', 'period' => 'mtd'], 8, 3, 4, 6),
             $w('line_smooth', 'Seasonal pattern (24 months)', ['kind' => 'time', 'measures' => ['net_value'], 'grain' => 'month', 'period' => 'last_24_months'], 0, 9, 12, 7),

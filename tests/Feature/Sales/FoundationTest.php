@@ -68,7 +68,9 @@ class FoundationTest extends TestCase
         $this->assertEquals(35000, (float) $sub->monthly_price);
         $this->assertSame('2026-11-08', $sub->contract_start->toDateString());
         $this->assertSame('2027-11-07', $sub->contract_end->toDateString());
-        $this->assertEquals(1250, (float) $sub->change_request_hourly_rate);
+        $this->assertNull($sub->change_request_hourly_rate, 'No amount for additional work (meeting 2026-11-09).');
+        $this->assertSame(30, (int) $sub->payment_terms_days);
+        $this->assertSame(3, (int) $sub->notice_months);
         $this->assertSame('active', $company->status);
     }
 

@@ -18,7 +18,7 @@ const color: Record<string, string> = { pending: 'warning', applied: 'success', 
             <tbody>
               <tr><td>Customer</td><td>{{ r.customer?.customer_name }} ({{ r.customer?.customer_code }})</td></tr>
               <tr><td>Product</td><td>{{ r.product?.product_name }} ({{ r.product?.product_code }})</td></tr>
-              <tr><td>Quantity</td><td>{{ r.quantity }} {{ r.unit_of_measure ?? '' }}</td></tr>
+              <tr><td>Cases</td><td>{{ r.quantity }}</td></tr>
               <tr><td>Unit price</td><td>{{ r.unit_price ?? '—' }}</td></tr>
               <tr><td>Gross / discount / net</td><td>{{ money(r.gross_value) }} / {{ money(r.discount) }} / <strong>{{ money(r.net_value) }}</strong></td></tr>
               <tr><td>Source reference</td><td>{{ r.external_id ?? '—' }}</td></tr>

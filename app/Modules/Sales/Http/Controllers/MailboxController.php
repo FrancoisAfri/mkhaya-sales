@@ -73,7 +73,9 @@ class MailboxController extends Controller
             $matching = collect($messages)->filter(fn ($m) => $service->matches($mailbox, $m));
             $mailbox->update(['last_connected_at' => now(), 'status' => 'healthy', 'last_error' => null]);
 
-            return back()->with('success', "Connected. {$matching->count()} of " . count($messages) . ' recent emails match the rules.');
+            $what = $mailbox->isRepository() ? 'recent files' : 'recent emails';
+
+            return back()->with('success', "Connected. {$matching->count()} of " . count($messages) . " {$what} match the rules.");
         } catch (\Throwable $e) {
             $mailbox->update(['status' => 'failing', 'last_error' => $e->getMessage()]);
 
@@ -94,7 +96,7 @@ class MailboxController extends Controller
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:150'],
-            'provider' => ['required', Rule::in(['graph', 'imap'])],
+            'provider' => ['required', Rule::in(['graph', 'imap', 'sftp', 'sharepoint'])],
             'mailbox_address' => ['required', 'string', 'max:190'],
             'folder' => ['nullable', 'string', 'max:120'],
             'sender' => ['nullable', 'string', 'max:190'],
@@ -119,11 +121,14 @@ class MailboxController extends Controller
             'credentials.port' => ['nullable', 'integer'],
             'credentials.encryption' => ['nullable', Rule::in(['ssl', 'tls', 'none'])],
             'credentials.password' => ['nullable', 'string', 'max:500'],
+            'credentials.private_key' => ['nullable', 'string', 'max:10000'],
+            'credentials.host_fingerprint' => ['nullable', 'string', 'max:120'],
+            'credentials.drive_id' => ['nullable', 'string', 'max:200'],
         ]);
 
         $creds = array_filter($data['credentials'] ?? [], fn ($v) => $v !== null && $v !== '');
         $data['credentials'] = array_merge($existing?->credentials ?? [], $creds);
-        $data['folder'] = $data['folder'] ?: ($data['provider'] === 'imap' ? 'INBOX' : 'inbox');
+        $data['folder'] = $data['folder'] ?: match ($data['provider']) { 'imap' => 'INBOX', 'sftp' => '/', 'sharepoint' => '', default => 'inbox' };
         $data['run_days'] = empty($data['run_days']) ? null : array_values(array_map('intval', $data['run_days']));
         // A changed time means today's run is decided by the new time.
         if ($existing && $existing->run_time !== $data['run_time']) {

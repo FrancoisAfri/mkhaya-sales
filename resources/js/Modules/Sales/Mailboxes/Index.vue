@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { router, useForm } from '@inertiajs/vue3'
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 
 const props = defineProps<{ mailboxes: any[]; runs: any[]; layouts: { id: number; name: string }[]; timezones: string[] }>()
 
@@ -11,7 +11,7 @@ const blank = () => ({
   name: 'Daily sales report', provider: 'graph', mailbox_address: '', folder: '', sender: '', subject_pattern: '', filename_pattern: '',
   extensions: 'xlsx,xls,csv', layout_id: null as number | null, run_time: '03:30', timezone: 'Africa/Johannesburg', run_days: [] as number[],
   lookback_days: 2, missing_after_minutes: 120, auto_commit: true, enabled: true,
-  credentials: { tenant_id: '', client_id: '', client_secret: '', host: '', port: 993, encryption: 'ssl', password: '' } as Record<string, any>,
+  credentials: { tenant_id: '', client_id: '', client_secret: '', host: '', port: 993, encryption: 'ssl', password: '', private_key: '', host_fingerprint: '', drive_id: '' } as Record<string, any>,
 })
 const form = useForm(blank())
 
@@ -26,6 +26,16 @@ function save() {
   const opts = { preserveScroll: true, onSuccess: () => { dialog.value = false } }
   editing.value ? form.put(`/sales/mailboxes/${editing.value.uuid}`, opts) : form.post('/sales/mailboxes', opts)
 }
+// Method 1 = email (Microsoft 365 or IMAP); method 2 = a secure central repository (SFTP or SharePoint).
+const providers = [
+  { value: 'graph', title: 'Email — Microsoft 365 (Graph API, recommended)', icon: 'tabler-brand-windows', label: 'Microsoft 365' },
+  { value: 'imap', title: 'Email — IMAP', icon: 'tabler-mail', label: 'IMAP' },
+  { value: 'sftp', title: 'Central repository — SFTP server', icon: 'tabler-server-2', label: 'SFTP repository' },
+  { value: 'sharepoint', title: 'Central repository — SharePoint / OneDrive folder', icon: 'tabler-folder-share', label: 'SharePoint repository' },
+]
+const prov = (v: string) => providers.find(p => p.value === v) ?? providers[0]
+const isRepo = (v: string) => v === 'sftp' || v === 'sharepoint'
+watch(() => form.provider, (v) => { if (v === 'sftp' && (!form.credentials.port || form.credentials.port === 993)) form.credentials.port = 22; if (v === 'imap' && form.credentials.port === 22) form.credentials.port = 993 })
 const when = (s: string | null) => s ? new Date(s).toLocaleString('en-ZA', { dateStyle: 'medium', timeStyle: 'short' }) : '—'
 const health: Record<string, string> = { healthy: 'success', failing: 'error', new: 'info', disabled: 'default' }
 const runColor: Record<string, string> = { imported: 'success', no_email: 'warning', duplicate: 'secondary', failed: 'error', running: 'info' }
@@ -35,19 +45,19 @@ const runColor: Record<string, string> = { imported: 'success', no_email: 'warni
   <VContainer fluid class="pa-4 pa-sm-6">
     <div class="d-flex flex-wrap align-center justify-space-between gap-3 mb-4">
       <div>
-        <h3 class="text-h5 font-weight-bold mb-1">Mailbox setup</h3>
-        <p class="text-body-2 text-medium-emphasis mb-0">The daily report is collected automatically at the time you set. If it does not arrive, load the file in the <a href="/sales/imports">Import Centre</a>.</p>
+        <h3 class="text-h5 font-weight-bold mb-1">Report sources</h3>
+        <p class="text-body-2 text-medium-emphasis mb-0">The daily report is collected automatically at the agreed time — by email (method 1) or from a secure central repository (method 2). If it does not arrive, load the file in the <a href="/sales/imports">Import Centre</a>.</p>
       </div>
-      <VBtn color="primary" prepend-icon="tabler-plus" @click="open()">Add mailbox</VBtn>
+      <VBtn color="primary" prepend-icon="tabler-plus" @click="open()">Add source</VBtn>
     </div>
 
     <VRow>
       <VCol v-for="m in mailboxes" :key="m.id" cols="12" lg="6">
         <VCard elevation="0" border rounded="lg">
           <VCardItem>
-            <template #prepend><VIcon :icon="m.provider === 'graph' ? 'tabler-brand-windows' : 'tabler-mail'" size="28" /></template>
+            <template #prepend><VIcon :icon="prov(m.provider).icon" size="28" /></template>
             <VCardTitle>{{ m.name }}</VCardTitle>
-            <VCardSubtitle>{{ m.mailbox_address }} · {{ m.provider === 'graph' ? 'Microsoft 365' : 'IMAP' }} · {{ m.folder }}</VCardSubtitle>
+            <VCardSubtitle>{{ m.mailbox_address }} · {{ prov(m.provider).label }} · {{ m.folder || '/' }}</VCardSubtitle>
             <template #append><VChip :color="health[m.status]" variant="tonal" size="small">{{ m.status }}</VChip></template>
           </VCardItem>
           <VCardText>
@@ -99,15 +109,25 @@ const runColor: Record<string, string> = { imported: 'success', no_email: 'warni
         <VCardText>
           <VRow dense>
             <VCol cols="12" md="6"><VTextField v-model="form.name" label="Name *" density="compact" variant="outlined" :error-messages="form.errors.name" /></VCol>
-            <VCol cols="12" md="6"><VSelect v-model="form.provider" :items="[{ value: 'graph', title: 'Microsoft 365 (Graph API — recommended)' }, { value: 'imap', title: 'IMAP' }]" label="Mailbox type" density="compact" variant="outlined" /></VCol>
-            <VCol cols="12" md="6"><VTextField v-model="form.mailbox_address" :label="form.provider === 'graph' ? 'Reporting mailbox address *' : 'IMAP login (email) *'" density="compact" variant="outlined" :error-messages="form.errors.mailbox_address" /></VCol>
-            <VCol cols="12" md="6"><VTextField v-model="form.folder" label="Folder" :placeholder="form.provider === 'graph' ? 'inbox' : 'INBOX'" density="compact" variant="outlined" /></VCol>
+            <VCol cols="12" md="6"><VSelect v-model="form.provider" :items="providers" label="How the report arrives" density="compact" variant="outlined" /></VCol>
+            <VCol cols="12" md="6"><VTextField v-model="form.mailbox_address" :label="({ graph: 'Reporting mailbox address *', imap: 'IMAP login (email) *', sftp: 'SFTP user name *', sharepoint: 'SharePoint site * (e.g. contoso.sharepoint.com/sites/Sales)' } as any)[form.provider]" density="compact" variant="outlined" :error-messages="form.errors.mailbox_address" /></VCol>
+            <VCol cols="12" md="6"><VTextField v-model="form.folder" :label="isRepo(form.provider) ? 'Folder on the repository' : 'Mail folder'" :placeholder="({ graph: 'inbox', imap: 'INBOX', sftp: '/outgoing/sales', sharepoint: 'Shared Documents/Daily sales' } as any)[form.provider]" density="compact" variant="outlined" /></VCol>
 
-            <template v-if="form.provider === 'graph'">
-              <VCol cols="12"><VAlert type="info" variant="tonal" density="compact">Register an app in Microsoft Entra ID with the application permission <strong>Mail.Read</strong> only, and ask the Exchange admin to limit it to this one mailbox (Application Access Policy). Secrets are stored encrypted; leave blank to keep the saved value.</VAlert></VCol>
+            <template v-if="form.provider === 'graph' || form.provider === 'sharepoint'">
+              <VCol v-if="form.provider === 'sharepoint'" cols="12"><VAlert type="info" variant="tonal" density="compact">Register an app in Microsoft Entra ID with <strong>Sites.Selected</strong> (granted on this one site) or <strong>Files.Read.All</strong>. Files are only read — nothing is moved or deleted. Secrets are stored encrypted.</VAlert></VCol>
+              <VCol v-if="form.provider === 'graph'" cols="12"><VAlert type="info" variant="tonal" density="compact">Register an app in Microsoft Entra ID with the application permission <strong>Mail.Read</strong> only, and ask the Exchange admin to limit it to this one mailbox (Application Access Policy). Secrets are stored encrypted; leave blank to keep the saved value.</VAlert></VCol>
               <VCol cols="12" md="4"><VTextField v-model="form.credentials.tenant_id" label="Directory (tenant) ID" :placeholder="editing?.credential_keys?.includes('tenant_id') ? '•••• saved' : ''" density="compact" variant="outlined" /></VCol>
               <VCol cols="12" md="4"><VTextField v-model="form.credentials.client_id" label="Application (client) ID" :placeholder="editing?.credential_keys?.includes('client_id') ? '•••• saved' : ''" density="compact" variant="outlined" /></VCol>
               <VCol cols="12" md="4"><VTextField v-model="form.credentials.client_secret" type="password" label="Client secret" :placeholder="editing?.credential_keys?.includes('client_secret') ? '•••• saved' : ''" density="compact" variant="outlined" /></VCol>
+              <VCol v-if="form.provider === 'sharepoint'" cols="12"><VTextField v-model="form.credentials.drive_id" label="Drive ID (optional — only if the files are not in the site's main document library)" density="compact" variant="outlined" /></VCol>
+            </template>
+            <template v-else-if="form.provider === 'sftp'">
+              <VCol cols="12"><VAlert type="info" variant="tonal" density="compact">Secure central repository over SFTP. Use a read-only account limited to the report folder; a key is safer than a password. Files are only read — nothing is moved or deleted. Secrets are stored encrypted; leave blank to keep the saved value.</VAlert></VCol>
+              <VCol cols="12" md="5"><VTextField v-model="form.credentials.host" label="SFTP server" :placeholder="editing?.credential_keys?.includes('host') ? '•••• saved' : 'sftp.example.co.za'" density="compact" variant="outlined" /></VCol>
+              <VCol cols="6" md="2"><VTextField v-model.number="form.credentials.port" label="Port" type="number" density="compact" variant="outlined" /></VCol>
+              <VCol cols="12" md="5"><VTextField v-model="form.credentials.password" type="password" label="Password (or key passphrase)" :placeholder="editing?.credential_keys?.includes('password') ? '•••• saved' : ''" density="compact" variant="outlined" /></VCol>
+              <VCol cols="12" md="7"><VTextarea v-model="form.credentials.private_key" rows="2" label="Private key (optional, OpenSSH/PEM)" :placeholder="editing?.credential_keys?.includes('private_key') ? '•••• saved' : '-----BEGIN OPENSSH PRIVATE KEY-----'" density="compact" variant="outlined" /></VCol>
+              <VCol cols="12" md="5"><VTextField v-model="form.credentials.host_fingerprint" label="Server key fingerprint (optional)" placeholder="SHA256:…" hint="Refuses to connect if the server's key changes" persistent-hint density="compact" variant="outlined" /></VCol>
             </template>
             <template v-else>
               <VCol cols="12" md="5"><VTextField v-model="form.credentials.host" label="IMAP server" :placeholder="editing?.credential_keys?.includes('host') ? '•••• saved' : 'imap.example.com'" density="compact" variant="outlined" /></VCol>
@@ -116,10 +136,10 @@ const runColor: Record<string, string> = { imported: 'success', no_email: 'warni
               <VCol cols="12" md="3"><VTextField v-model="form.credentials.password" type="password" label="Password" :placeholder="editing?.credential_keys?.includes('password') ? '•••• saved' : ''" density="compact" variant="outlined" /></VCol>
             </template>
 
-            <VCol cols="12"><VDivider class="my-2" /><div class="text-subtitle-2">Which email is the report</div></VCol>
-            <VCol cols="12" md="4"><VTextField v-model="form.sender" label="Approved sender" placeholder="reports@vector.co.za or @vector.co.za" density="compact" variant="outlined" /></VCol>
-            <VCol cols="12" md="4"><VTextField v-model="form.subject_pattern" label="Subject contains (or /regex/)" placeholder="Daily Sales" density="compact" variant="outlined" /></VCol>
-            <VCol cols="12" md="4"><VTextField v-model="form.filename_pattern" label="Attachment name pattern" placeholder="*Sales*.xlsx" density="compact" variant="outlined" /></VCol>
+            <VCol cols="12"><VDivider class="my-2" /><div class="text-subtitle-2">{{ isRepo(form.provider) ? 'Which file is the report' : 'Which email is the report' }}</div></VCol>
+            <VCol v-if="!isRepo(form.provider)" cols="12" md="4"><VTextField v-model="form.sender" label="Approved sender" placeholder="reports@vector.co.za or @vector.co.za" density="compact" variant="outlined" /></VCol>
+            <VCol v-if="!isRepo(form.provider)" cols="12" md="4"><VTextField v-model="form.subject_pattern" label="Subject contains (or /regex/)" placeholder="Daily Sales" density="compact" variant="outlined" /></VCol>
+            <VCol cols="12" md="4"><VTextField v-model="form.filename_pattern" :label="isRepo(form.provider) ? 'File name pattern' : 'Attachment name pattern'" placeholder="*Sales*.xlsx" density="compact" variant="outlined" /></VCol>
             <VCol cols="12" md="4"><VTextField v-model="form.extensions" label="Allowed file types" density="compact" variant="outlined" /></VCol>
             <VCol cols="12" md="8"><VSelect v-model="form.layout_id" :items="layouts" item-title="name" item-value="id" clearable label="File layout for this report" density="compact" variant="outlined" /></VCol>
 

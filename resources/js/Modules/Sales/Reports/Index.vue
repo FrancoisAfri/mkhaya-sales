@@ -30,6 +30,9 @@ function save() {
 }
 const dimCols = computed(() => props.result.kind === 'grouped' && props.result.rows?.length ? Object.keys(props.result.rows[0]).filter(k => k in props.dimensions) : [])
 const hasCompare = computed(() => props.result.rows?.[0] && 'previous' in props.result.rows[0])
+const num = (n: any) => Number(n ?? 0).toLocaleString('en-ZA', { maximumFractionDigits: 0 })
+const isMoney = computed(() => ['net_value', 'gross_value', 'discount'].includes(props.report.measure ?? 'net_value'))
+const showCases = computed(() => isMoney.value && props.result.rows?.[0] && 'cases' in props.result.rows[0])
 const statusColor: Record<string, string> = { achieved: 'success', on_track: 'info', at_risk: 'warning', behind: 'error', breached: 'error' }
 </script>
 
@@ -79,11 +82,11 @@ const statusColor: Record<string, string> = { achieved: 'success', on_track: 'in
           <template v-if="result.kind === 'grouped'">
             <VCardText class="pb-0 text-caption text-medium-emphasis">{{ result.count }} rows · total {{ money(result.total) }}</VCardText>
             <VTable density="compact" fixed-header height="600">
-              <thead><tr><th v-for="d in dimCols" :key="d">{{ dimensions[d] }}</th><th class="text-end">{{ measures[report.measure ?? 'net_value'] }}</th><th class="text-end">Share</th>
+              <thead><tr><th v-for="d in dimCols" :key="d">{{ dimensions[d] }}</th><th class="text-end">{{ measures[report.measure ?? 'net_value'] }}</th><th v-if="showCases" class="text-end">Cases</th><th class="text-end">Share</th>
                 <template v-if="hasCompare"><th class="text-end">Comparison</th><th class="text-end">Change</th><th class="text-end">Growth</th></template></tr></thead>
               <tbody><tr v-for="r in result.rows" :key="r.key">
-                <td v-for="d in dimCols" :key="d">{{ r[d] }}</td><td class="text-end">{{ money(r.value) }}</td><td class="text-end">{{ r.share }}%</td>
-                <template v-if="hasCompare"><td class="text-end">{{ money(r.previous) }}</td><td class="text-end" :class="r.change >= 0 ? 'text-success' : 'text-error'">{{ money(r.change) }}</td><td class="text-end">{{ pct(r.growth) }}</td></template>
+                <td v-for="d in dimCols" :key="d">{{ r[d] }}</td><td class="text-end">{{ isMoney ? money(r.value) : num(r.value) }}</td><td v-if="showCases" class="text-end">{{ num(r.cases) }}</td><td class="text-end">{{ r.share }}%</td>
+                <template v-if="hasCompare"><td class="text-end">{{ isMoney ? money(r.previous) : num(r.previous) }}</td><td class="text-end" :class="r.change >= 0 ? 'text-success' : 'text-error'">{{ isMoney ? money(r.change) : num(r.change) }}</td><td class="text-end">{{ pct(r.growth) }}</td></template>
               </tr></tbody>
             </VTable>
           </template>

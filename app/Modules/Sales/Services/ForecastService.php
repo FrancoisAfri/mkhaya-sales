@@ -36,8 +36,15 @@ class ForecastService
         $months = [];
         for ($i = 0; $i <= $ahead; $i++) {
             $m = $last->startOfMonth()->addMonths($i);
-            $ly = (float) ($hist[$m->subYear()->format('Y-m')] ?? 0);
+            // A year after the current month, "last year" is this month — still partial, so use its run rate.
+            $ly = $m->subYear()->format('Y-m') === $last->format('Y-m') ? $runRate : (float) ($hist[$m->subYear()->format('Y-m')] ?? 0);
             $seasonal = $ly > 0 && $growth !== null ? $ly * (1 + $growth) : null;
+            // More than a year ahead there is no actual "same month last year": grow the forecast made
+            // for that month a year earlier by the same recent growth.
+            $yearEarlier = $i >= 12 ? ($months[$i - 12]['forecast'] ?? null) : null;
+            if ($seasonal === null && $yearEarlier !== null) {
+                $seasonal = $yearEarlier * (1 + ($growth ?? 0));
+            }
             $point = $i === 0 ? $runRate : ($seasonal ?? $wma);
             $spread = $this->spread($complete);
             $months[] = [
@@ -47,7 +54,8 @@ class ForecastService
                 'low' => round(max(0, $point * (1 - $spread)), 2),
                 'high' => round($point * (1 + $spread), 2),
                 'method' => $i === 0 ? 'Run rate (actual to date ÷ days elapsed × days in month)'
-                    : ($seasonal !== null ? 'Same month last year × recent growth' : 'Weighted moving average of the last 3 months'),
+                    : ($yearEarlier !== null && $ly <= 0 ? 'Forecast for the same month a year earlier × recent growth'
+                        : ($seasonal !== null ? 'Same month last year × recent growth' : 'Weighted moving average of the last 3 months')),
                 'last_year' => $ly ?: null,
             ];
         }

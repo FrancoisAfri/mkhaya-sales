@@ -22,7 +22,8 @@ export const VISUALS: Visual[] = [
   v('thermometer', 'Thermometer', 'KPIs & targets', 'kpi', 'tabler-temperature', { measures: ['achievement_pct'] }),
   v('traffic_light', 'Traffic light KPI', 'KPIs & targets', 'kpi', 'tabler-traffic-lights', { measures: ['achievement_pct'] }),
   v('variance_card', 'Variance card', 'KPIs & targets', 'kpi', 'tabler-plus-minus', { measures: ['growth_pct', 'last_year'] }),
-  v('run_rate_card', 'Target run-rate card', 'KPIs & targets', 'kpi', 'tabler-run', { measures: ['net_value', 'target'] }),
+  v('month_elapsed', 'Time elapsed (% of month gone)', 'KPIs & targets', 'kpi', 'tabler-calendar-time', { measures: ['net_value', 'month_target'] }),
+  v('run_rate_card', 'Target run-rate card', 'KPIs & targets', 'kpi', 'tabler-run', { measures: ['net_value', 'month_target'] }),
   v('target_table', 'Scorecard (targets)', 'KPIs & targets', 'kpi', 'tabler-list-check', {}, 'targets'),
 
   v('column_clustered', 'Clustered column', 'Bar & column', 'category', 'tabler-chart-bar', { measures: ['net_value', 'last_year'], dimension: 'category' }),
@@ -50,7 +51,7 @@ export const VISUALS: Visual[] = [
   v('small_multiples_line', 'Small multiples (line)', 'Line & trend', 'time', 'tabler-layout-grid', { measures: ['net_value'], series: 'region', grain: 'month', top: 4 }),
 
   v('combo_column_line', 'Column and line', 'Combination', 'time', 'tabler-chart-arcs', { measures: ['net_value', 'target'], grain: 'month' }),
-  v('dual_axis', 'Dual axis (value & quantity)', 'Combination', 'time', 'tabler-axis-y', { measures: ['net_value', 'quantity'], grain: 'month' }),
+  v('dual_axis', 'Dual axis (value & cases)', 'Combination', 'time', 'tabler-axis-y', { measures: ['net_value', 'quantity'], grain: 'month' }),
   v('stacked_column_line', 'Stacked column and line', 'Combination', 'time', 'tabler-chart-arcs', { measures: ['net_value'], series: 'category', grain: 'month' }),
   v('area_line', 'Area and line', 'Combination', 'time', 'tabler-chart-area', { measures: ['net_value', 'last_year'], grain: 'month' }),
 
@@ -108,7 +109,7 @@ export function fmt(v: any, format = 'currency', compact = true): string {
   const n = Number(v)
   if (format === 'percent') return `${n > 0 ? '' : ''}${n.toFixed(1)}%`
   const abs = Math.abs(n)
-  const short = compact && abs >= 1e6 ? (n / 1e6).toFixed(abs >= 1e8 ? 0 : 1) + 'm' : compact && abs >= 1e4 ? (n / 1e3).toFixed(0) + 'k' : n.toLocaleString('en-ZA', { maximumFractionDigits: format === 'currency' ? 0 : 1 })
+  const short = compact && abs >= 1e6 ? (n / 1e6).toFixed(abs >= 1e8 ? 0 : 1) + 'm' : compact && abs >= 1e4 ? (n / 1e3).toFixed(0) + 'k' : n.toLocaleString('en-ZA', { maximumFractionDigits: 0 })
   return format === 'currency' ? `R ${short}` : short
 }
 
@@ -181,8 +182,9 @@ export function buildOption(type: string, d: any): any {
       const data = d.categories.map((c: string, i: number) => ({ name: c, value: series[0]?.data[i] ?? 0 }))
       if (type === 'funnel') return base({ tooltip: { trigger: 'item', ...tip(fm(first)) }, legend: { show: false }, series: [{ type: 'funnel', sort: 'descending', gap: 2, label: { formatter: '{b}' }, data }] })
       const total = data.reduce((a: number, x: any) => a + (x.value ?? 0), 0) || 1
-      return base({ tooltip: { trigger: 'item', ...tip(fm(first)) }, legend: { type: 'scroll', orient: 'vertical', right: 0, top: 'middle', left: 'auto', formatter: (n: string) => { const x = data.find((y: any) => y.name === n); return `${n.length > 18 ? n.slice(0, 17) + '…' : n}  ${((x?.value ?? 0) / total * 100).toFixed(0)}%` } },
-        series: [{ type: 'pie', radius: type === 'pie' ? ['0%', '72%'] : ['52%', '78%'], roseType: type === 'rose' ? 'radius' : undefined, center: ['32%', '50%'], itemStyle: { borderColor: '#fff', borderWidth: 2, borderRadius: 6 },
+      return base({ tooltip: { trigger: 'item', ...tip(fm(first)) }, // Legend under the chart so the ring never sits on top of it, however narrow the card.
+        legend: { type: 'plain', orient: 'horizontal', bottom: 0, left: 'center', top: 'auto', right: 'auto', itemGap: 10, itemWidth: 8, itemHeight: 8, icon: 'circle', textStyle: { fontSize: 11, color: '#5B5B6E' }, formatter: (n: string) => { const x = data.find((y: any) => y.name === n); return `${n.length > 26 ? n.slice(0, 25) + '…' : n}  ${((x?.value ?? 0) / total * 100).toFixed(0)}%` } },
+        series: [{ type: 'pie', radius: type === 'pie' ? ['0%', '60%'] : ['42%', '64%'], roseType: type === 'rose' ? 'radius' : undefined, center: ['50%', '40%'], itemStyle: { borderColor: '#fff', borderWidth: 2, borderRadius: 6 },
           label: { show: false }, data }] })
     }
     case 'treemap': case 'sunburst': {
@@ -207,7 +209,7 @@ export function buildOption(type: string, d: any): any {
       const pts = d.points ?? []
       const maxQ = Math.max(1, ...pts.map((p: any) => p.value[2]))
       return base({ legend: { show: false }, grid: { left: 8, right: 24, top: 24, bottom: 8, containLabel: true },
-        tooltip: { trigger: 'item', formatter: (p: any) => `<b>${p.data.name}</b><br>Sales ${fmt(p.data.value[0], 'currency', false)}<br>Growth ${fmt(p.data.value[1], 'percent')}<br>Quantity ${fmt(p.data.value[2], 'number', false)}` },
+        tooltip: { trigger: 'item', formatter: (p: any) => `<b>${p.data.name}</b><br>Sales ${fmt(p.data.value[0], 'currency', false)}<br>Growth ${fmt(p.data.value[1], 'percent')}<br>Cases ${fmt(p.data.value[2], 'number', false)}` },
         xAxis: valAxis('currency', { name: 'Sales', nameLocation: 'middle', nameGap: 28, scale: true }), yAxis: valAxis('percent', { name: 'Growth vs last year', scale: true }),
         series: [{ type: 'scatter', data: pts, symbolSize: (val: number[]) => type === 'scatter' ? 9 : 8 + 34 * Math.sqrt(val[2] / maxQ),
           itemStyle: { color: (p: any) => p.data.value[1] >= 0 ? (p.data.value[0] >= d.x_mid ? '#6A0DAD' : '#00A8B5') : (p.data.value[0] >= d.x_mid ? AMBER : BAD), opacity: .75 },

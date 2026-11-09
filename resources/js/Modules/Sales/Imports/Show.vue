@@ -40,7 +40,7 @@ const recon = computed(() => {
   if (!s || !t) return null
   return [
     { label: 'Net value', source: s.net_value, imported: t.net_value, fmt: money },
-    { label: 'Quantity', source: s.quantity, imported: t.quantity, fmt: num },
+    { label: 'Cases', source: s.quantity, imported: t.quantity, fmt: num },
     { label: 'Rows', source: s.rows, imported: b.value.valid_rows + b.value.warning_rows, fmt: num },
   ].filter(r => r.source !== null && r.source !== undefined && r.source !== '')
 })
@@ -101,7 +101,7 @@ const brief = (d: any) => Object.entries(d).filter(([k]) => !['attributes', 'cus
               <tbody>
                 <tr><td>Net sales value (valid rows)</td><td class="text-end font-weight-bold">{{ money(b.totals.net_value) }}</td></tr>
                 <tr><td>Gross sales value</td><td class="text-end">{{ money(b.totals.gross_value) }}</td></tr>
-                <tr><td>Quantity</td><td class="text-end">{{ num(b.totals.quantity) }}</td></tr>
+                <tr><td>Cases</td><td class="text-end">{{ num(b.totals.quantity) }}</td></tr>
                 <tr><td>Customers / products</td><td class="text-end">{{ num(b.totals.customers) }} / {{ num(b.totals.products) }}</td></tr>
                 <tr><td>Dates in file</td><td class="text-end">{{ b.period_from?.slice(0, 10) }} → {{ b.period_to?.slice(0, 10) }}</td></tr>
               </tbody>
