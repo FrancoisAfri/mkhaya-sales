@@ -51,5 +51,15 @@ class MeetingChangesTest extends SalesTestCase
             $props = $this->actingAs($admin)->get("/sales/forecast?months={$asked}")->assertOk()->viewData('page')['props'];
             $this->assertCount($rows, $props['forecast']['months'], 'This month plus the months asked for (custom is capped at 36).');
         }
+
+        // Volume in cases, with the workings shown on the page adding up.
+        $props = $this->actingAs($admin)->get('/sales/forecast?months=3&measure=cases')->assertOk()->viewData('page')['props'];
+        $this->assertSame('cases', $props['measure']);
+        $this->assertSame('quantity', $props['forecast']['measure']);
+        $w = $props['forecast']['workings'];
+        $this->assertEquals(5, $w['month_to_date'], 'Five cases sold this month.');
+        $this->assertEqualsWithDelta($w['month_to_date'] / $w['days_elapsed'] * $w['days_in_month'], $w['run_rate'], 0.01);
+        $this->assertEqualsWithDelta($w['run_rate'], $props['forecast']['months'][0]['forecast'], 0.01);
+        $this->assertArrayHasKey('accuracy', $props['forecast']);
     }
 }

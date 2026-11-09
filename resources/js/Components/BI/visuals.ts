@@ -311,12 +311,15 @@ export function rankedBars(names: string[], values: number[], color = PALETTE[0]
     series: [{ type: 'bar', barMaxWidth: 18, data: [...values].reverse(), itemStyle: { color, borderRadius: [0, 6, 6, 0] } }] })
 }
 
-/** Actual months as columns, forecast as a dashed line with its likely range. */
-export function forecastCombo(months: string[], actual: (number | null)[], forecast: (number | null)[], low: (number | null)[], high: (number | null)[]) {
-  return base({ legend: { ...base().legend, data: ['Actual', 'Forecast (estimate)', 'Likely range'] }, tooltip: { ...base().tooltip, ...tip('currency') },
-    xAxis: catAxis(months), yAxis: valAxis('currency'),
+/** Actual months as columns, forecast as a dashed line with its likely range, and the target where one is set. */
+export function forecastCombo(months: string[], actual: (number | null)[], forecast: (number | null)[], low: (number | null)[], high: (number | null)[],
+  target: (number | null)[] = [], format = 'currency') {
+  const hasTarget = target.some(t => t !== null && t !== undefined)
+  return base({ legend: { ...base().legend, data: ['Actual', 'Forecast (estimate)', 'Likely range', ...(hasTarget ? ['Target'] : [])] }, tooltip: { ...base().tooltip, ...tip(format) },
+    xAxis: catAxis(months), yAxis: valAxis(format),
     series: [{ name: 'Actual', type: 'bar', barMaxWidth: 26, data: actual, itemStyle: { borderRadius: [6, 6, 0, 0] } },
       { name: 'Forecast (estimate)', type: 'line', data: forecast, lineStyle: { type: 'dashed', width: 2.5 }, itemStyle: { color: AMBER }, symbolSize: 6 },
       { name: 'low', type: 'line', stack: 'band', data: low, lineStyle: { opacity: 0 }, symbol: 'none', tooltip: { show: false } },
-      { name: 'Likely range', type: 'line', stack: 'band', data: high.map((h, i) => (h === null || low[i] === null ? null : h - (low[i] as number))), lineStyle: { opacity: 0 }, symbol: 'none', areaStyle: { color: 'rgba(228,168,0,.15)' }, tooltip: { show: false } }] })
+      { name: 'Likely range', type: 'line', stack: 'band', data: high.map((h, i) => (h === null || low[i] === null ? null : h - (low[i] as number))), lineStyle: { opacity: 0 }, symbol: 'none', areaStyle: { color: 'rgba(228,168,0,.15)' }, tooltip: { show: false } },
+      ...(hasTarget ? [{ name: 'Target', type: 'line', step: 'middle', data: target, symbol: 'none', lineStyle: { color: GOOD, type: 'dotted', width: 2 }, itemStyle: { color: GOOD } }] : [])] })
 }
