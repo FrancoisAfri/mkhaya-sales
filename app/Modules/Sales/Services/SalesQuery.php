@@ -40,10 +40,11 @@ class SalesQuery
         return array_filter($f, fn ($v) => $v !== null && $v !== '');
     }
 
-    public function base(array $f, ?User $user = null): Builder
+    /** @param string $table sales_records, or sales_monthly_summary when whole months are asked for (same columns) */
+    public function base(array $f, ?User $user = null, string $table = 'sales_records'): Builder
     {
         $company = (int) app(CurrentCompany::class)->id() ?: (int) $user?->company_id;
-        $q = DB::table('sales_records as s')->where('s.company_id', $company)->where('s.status', 'active');
+        $q = DB::table("{$table} as s")->where('s.company_id', $company)->where('s.status', 'active');
 
         if (! empty($f['from'])) {
             $q->where('s.transaction_date', '>=', $f['from']);

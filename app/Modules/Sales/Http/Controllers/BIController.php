@@ -190,7 +190,7 @@ class BIController extends Controller
         }
         DB::table('bi_measures')->updateOrInsert(['company_id' => SalesCompany::id(), 'key' => Str::slug($data['label'], '_')],
             $data + ['created_by' => $request->user()->id, 'created_at' => now(), 'updated_at' => now()]);
-        BIQueryService::invalidate();
+        BIQueryService::invalidate(null, false);
 
         return back()->with('success', 'Measure saved.');
     }

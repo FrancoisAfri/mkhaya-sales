@@ -69,6 +69,8 @@ class BIQueryService
     /** Dimensions the key-influencer scan looks through for what explains a change. */
     public const INFLUENCER_DIMENSIONS = ['region', 'province', 'customer_group', 'category', 'brand', 'sales_team', 'salesperson', 'distribution_centre', 'business_unit'];
 
+    private ?string $lastSale = null;
+
     public function __construct(private SalesQuery $query, private SalesAnalytics $analytics) {}
 
     /** Every measure a visual may ask for, with label and format. */
@@ -109,10 +111,14 @@ class BIQueryService
     }
 
     /** Bump when sales or targets change so cached visuals refresh (§10). */
-    public static function invalidate(?int $companyId = null): void
+    /** @param bool $salesChanged false when only targets or measures changed (the monthly summary stays valid) */
+    public static function invalidate(?int $companyId = null, bool $salesChanged = true): void
     {
         $c = $companyId ?? SalesCompany::id();
         Cache::forever("bi-version:{$c}", (int) Cache::get("bi-version:{$c}", 0) + 1);
+        if ($salesChanged && $c) {
+            SalesSummary::markStale((int) $c);
+        }
     }
 
     private function version(): int
@@ -510,13 +516,15 @@ class BIQueryService
 
     private function aggregate(array $base, array $f, ?User $user, array $dims, int $shiftYears = 0): array
     {
-        $q = $this->query->base($f, $user);
+        // Whole months → the monthly summary (gap 5); anything finer → the invoice lines.
+        $summary = SalesSummary::ready((int) SalesCompany::id()) && SalesSummary::covers($f, $dims, $base, $this->lastSale ??= $this->analytics->lastSaleDate());
+        $q = $this->query->base($f, $user, $summary ? 'sales_monthly_summary' : 'sales_records');
         foreach ($dims as $i => $d) {
             [$expr, $label] = $this->analytics->dimension($q, $d, 0, $shiftYears);
             $q->selectRaw("{$expr} as _k{$i}, {$label} as _l{$i}")->groupByRaw("{$expr}, {$label}");
         }
         foreach ($base as $b) {
-            $q->selectRaw(self::BASE[$b]['sql'] . " as {$b}");
+            $q->selectRaw(($summary && $b === 'transactions' ? 'coalesce(sum(s.lines),0)' : self::BASE[$b]['sql']) . " as {$b}");
         }
         if (! $dims) {
             $q->selectRaw("'' as _k0");

@@ -104,6 +104,7 @@ class SalesRecordController extends Controller
             if ($approve) {
                 $value = in_array($adj->field, ['customer_id', 'product_id'], true) ? (int) $adj->new_value : $adj->new_value;
                 SalesRecord::whereKey($adj->sales_record_id)->update([$adj->field => $value, 'is_adjusted' => true, 'updated_at' => now()]);
+                \App\Modules\Sales\Services\BI\BIQueryService::invalidate();   // figures and the monthly summary refresh
             }
             $adj->update(['status' => $approve ? 'applied' : 'rejected', 'approved_by' => $request->user()->id, 'decided_at' => now()]);
         });

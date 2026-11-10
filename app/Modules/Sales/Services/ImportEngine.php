@@ -379,6 +379,9 @@ class ImportEngine
 
         $batch->update($result + ['status' => 'committed', 'completed_at' => now()]);
         \App\Modules\Sales\Services\BI\BIQueryService::invalidate($batch->company_id);
+        if ($batch->target === 'sales') {
+            \App\Modules\Sales\Services\BI\SalesSummary::rebuild($batch->company_id);   // already in a background job for large files
+        }
         activity('sales')->performedOn($batch)->causedBy($by)->withProperties($result + ['file' => $batch->file_name])->log('import committed');
 
         return $batch;
