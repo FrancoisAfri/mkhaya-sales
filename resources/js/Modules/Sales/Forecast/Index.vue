@@ -7,7 +7,7 @@ import FilterBar from '@/Components/Sales/FilterBar.vue'
 import { forecastCombo, fmt, GOOD, AMBER, BAD } from '@/Components/BI/visuals'
 
 const props = defineProps<{
-  forecast: any; horizon: number; measure: 'value' | 'cases'; targets: Record<string, number | null>
+  forecast: any; horizon: number; measure: 'value' | 'cases'; methodChoice: 'plain' | 'ets' | 'best'; targets: Record<string, number | null>
   categories: any[]; products: any[]; filters: Record<string, any>; options: Record<string, any[]>
 }>()
 
@@ -17,7 +17,10 @@ const presets = [1, 2, 3, 6, 9, 12, 18]
 const choice = ref<number | 'custom'>(presets.includes(props.horizon) ? props.horizon : 'custom')
 const custom = ref<number>(props.horizon)
 const periodItems = [...presets.map(n => ({ value: n, title: n === 1 ? '1 month' : `${n} months` })), { value: 'custom', title: 'Custom…' }]
-const go = (q: Record<string, any>) => router.get('/sales/forecast', { ...props.filters, months: props.horizon, measure: props.measure, ...q }, { preserveScroll: true, preserveState: true })
+const go = (q: Record<string, any>) => router.get('/sales/forecast', { ...props.filters, months: props.horizon, measure: props.measure, method: props.methodChoice, ...q }, { preserveScroll: true, preserveState: true })
+const methodItems = [{ value: 'best', title: 'Best for this data' }, { value: 'plain', title: 'Plain: last year × trend' }, { value: 'ets', title: 'Statistical: Holt-Winters' }]
+const methods = computed(() => props.forecast.methods ?? {})
+const hw = computed(() => methods.value.ets?.params ?? null)
 function setHorizon(n: number) { if (n >= 1 && n <= 36) go({ months: n }) }
 function onChoice(v: number | 'custom') { choice.value = v; if (v !== 'custom') setHorizon(v) }
 
@@ -75,12 +78,13 @@ const accChart = computed(() => ({
           <button :class="{ on: !isCases }" @click="go({ measure: 'value' })"><VIcon icon="tabler-currency-dollar" size="15" /> Value (R)</button>
           <button :class="{ on: isCases }" @click="go({ measure: 'cases' })"><VIcon icon="tabler-package" size="15" /> Volume (cases)</button>
         </div>
+        <VSelect :model-value="methodChoice" :items="methodItems" label="Method" density="compact" variant="outlined" hide-details style="width: 210px" @update:model-value="m => go({ method: m })" />
         <VSelect :model-value="choice" :items="periodItems" label="Forecast period" density="compact" variant="outlined" hide-details style="width: 170px" @update:model-value="onChoice" />
         <VTextField v-if="choice === 'custom'" v-model.number="custom" type="number" min="1" max="36" label="Months (1–36)" density="compact" variant="outlined" hide-details style="width: 130px" @keyup.enter="setHorizon(custom)" @blur="setHorizon(custom)" />
       </div>
     </header>
 
-    <FilterBar :url="`/sales/forecast?months=${horizon}&measure=${measure}`" :filters="filters" :options="options" />
+    <FilterBar :url="`/sales/forecast?months=${horizon}&measure=${measure}&method=${methodChoice}`" :filters="filters" :options="options" />
 
     <!-- Headline numbers -->
     <div class="fc-kpis">
@@ -105,6 +109,7 @@ const accChart = computed(() => ({
         <small>How accurate the method is</small>
         <strong>{{ acc.accuracy === null ? '—' : acc.accuracy + '%' }}</strong>
         <p v-if="acc.mape !== null">On average {{ acc.mape }}% away from what was actually sold, over the last {{ acc.months.length }} months</p>
+        <p v-if="methods.plain?.accuracy != null && methods.ets?.accuracy != null" class="fc-vs">Plain {{ methods.plain.accuracy }}% · statistical {{ methods.ets.accuracy }}% — using <b>{{ forecast.method === 'ets' ? 'statistical' : 'plain' }}</b></p>
         <p v-else>Needs at least 13 months of history</p>
       </div>
     </div>
@@ -151,6 +156,17 @@ const accChart = computed(() => ({
             <div v-else>Not enough months yet.</div>
           </div>
           <p class="fc-note">Recent months count more, so the average follows the latest direction.</p>
+        </section>
+
+        <section class="fc-step">
+          <header><span><VIcon icon="tabler-chart-dots-3" size="16" /></span><div><h4>Option: statistical (Holt-Winters)</h4><p>{{ forecast.method === 'ets' ? 'In use now.' : 'Available — chosen automatically when it back-tests better.' }}</p></div></header>
+          <div class="fc-formula">Forecast = level + months ahead × trend + this month's seasonal effect</div>
+          <div class="fc-example">
+            <div>Each month the three parts are updated: level by α, trend by β, season by γ (0 = ignore the new month, 1 = trust it fully).</div>
+            <div v-if="hw">Chosen for this data by trying 75 combinations: <b>α {{ hw.alpha }} · β {{ hw.beta }} · γ {{ hw.gamma }}</b></div>
+            <div v-if="methods.ets?.accuracy != null">Back-tested: {{ methods.ets.accuracy }}% accurate vs {{ methods.plain?.accuracy }}% for the plain method.</div>
+          </div>
+          <p class="fc-note">Better on long, steady seasonal lines; the plain method is easier to explain and wins when the trend changes quickly.</p>
         </section>
 
         <section class="fc-step">
@@ -228,6 +244,7 @@ const accChart = computed(() => ({
 .fc-kpi small { font-size: 13px; font-weight: 600; color: #3A3A4A; }
 .fc-kpi strong { display: flex; align-items: center; gap: 4px; font-family: Montserrat, sans-serif; font-size: 28px; font-weight: 700; letter-spacing: -.5px; color: #16161F; margin: 6px 0 4px; }
 .fc-kpi p { margin: 6px 0 0; font-size: 12px; color: #77778A; line-height: 1.4; }
+.fc-vs { color: #5B5B6E !important; }
 .fc-bar { height: 8px; background: #F1EDF7; border-radius: 99px; overflow: hidden; } .fc-bar span { display: block; height: 100%; border-radius: 99px; }
 .fc-card-head { padding: 18px 20px 8px; } .fc-card-head h3 { margin: 0; font-size: 16px; font-weight: 700; color: #16161F; display: flex; align-items: center; } .fc-card-head span { font-size: 12.5px; color: #77778A; }
 .fc-steps { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; padding: 8px 20px 20px; }

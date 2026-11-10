@@ -72,14 +72,16 @@ class DashboardController extends Controller
         // Value (rand) or volume (cases) — the client forecasts both.
         $measure = $request->query('measure') === 'cases' ? 'quantity' : 'net_value';
         $user = $request->user();
-        $fc = $forecast->monthly($f, $user, $horizon, $measure);
+        // Forecast method (gap 11): the plain method, the statistical one, or whichever back-tests better.
+        $method = in_array($request->query('method'), ['plain', 'ets', 'best'], true) ? $request->query('method') : 'best';
+        $fc = $forecast->monthly($f, $user, $horizon, $measure, $method);
 
         // The same forecast per category: this month's estimate and next month.
         $since = now()->subMonths(3)->startOfMonth()->toDateString();
         $categories = collect($this->analytics->grouped(array_merge($f, ['from' => $since]), $user, ['category'], $measure, 'none', 8)['rows'])
             ->filter(fn ($r) => $r['category_id'] !== null)
             ->map(function ($r) use ($forecast, $f, $user, $measure) {
-                $c = $forecast->monthly(array_merge($f, ['category_id' => (int) $r['category_id']]), $user, 1, $measure);
+                $c = $forecast->monthly(array_merge($f, ['category_id' => (int) $r['category_id']]), $user, 1, $measure, $method);
 
                 return ['category' => $r['category'], 'month_to_date' => $c['months'][0]['actual'] ?? 0, 'month_end' => $c['months'][0]['forecast'] ?? 0,
                     'next' => $c['months'][1]['forecast'] ?? null, 'next_last_year' => $c['months'][1]['last_year'] ?? null, 'growth' => $c['recent_growth']];
@@ -89,6 +91,7 @@ class DashboardController extends Controller
             'forecast' => $fc,
             'horizon' => $horizon,
             'measure' => $measure === 'quantity' ? 'cases' : 'value',
+            'methodChoice' => $method,
             'targets' => $forecast->targetsByMonth(array_merge(array_column($fc['history'], 'month'), array_column($fc['months'], 'month')), $measure),
             'categories' => $categories,
             'products' => collect($this->analytics->grouped(array_merge($f, ['from' => $since]), $user, ['product'], $measure, 'previous_year', 15)['rows']),
