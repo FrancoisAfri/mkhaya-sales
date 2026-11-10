@@ -3,6 +3,7 @@ import { router, usePage } from '@inertiajs/vue3'
 import axios from 'axios'
 import { GridItem, GridLayout } from 'grid-layout-plus'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { useDisplay } from 'vuetify'
 import RemoteSelect from '@/Components/Sales/RemoteSelect.vue'
 import Visual from '@/Components/BI/Visual.vue'
 import { GROUPS, VISUALS, visual } from '@/Components/BI/visuals'
@@ -26,6 +27,9 @@ function onCrossFilter(e: { dimension: string; key: any; label: string }) { setF
 const lookup = (k: string) => ({ customer_id: 'customers', product_id: 'products', category_id: 'categories', brand_id: 'brands', region_id: 'regions', customer_group_id: 'customer_groups', sales_team_id: 'sales_teams', salesperson_id: 'salespeople', business_unit_id: 'business_units' } as any)[k]
 const chipLabel = (k: string, v: any) => crossLabels[k] ?? props.options[lookup(k)]?.find((o: any) => o.value === Number(v))?.title ?? v
 const chips = computed(() => Object.entries(appliedFilters.value).filter(([k]) => !['from', 'to'].includes(k)))
+// Phones (gap 1): filters fold away; editing the layout is for larger screens.
+const { smAndDown } = useDisplay()
+const filtersOpen = ref(false)
 
 // ── Layout ──
 const edit = ref(props.editing)
@@ -207,7 +211,7 @@ function addAnswer() {
           <VBtn v-if="canEdit || canShareLink" variant="text" icon="tabler-share" title="Share" @click="share = true" />
           <VBtn v-if="canCertify" variant="text" :icon="certified ? 'tabler-rosette-discount-check-filled' : 'tabler-rosette-discount-check'" :color="certified ? 'success' : undefined" :title="certified ? 'Certified — click to remove' : 'Mark as certified'" @click="toggleCertified" />
           <VBtn variant="tonal" prepend-icon="tabler-layout-dashboard" href="/sales/bi">All dashboards</VBtn>
-          <VBtn v-if="canEdit" color="primary" prepend-icon="tabler-edit" @click="edit = true">Edit</VBtn>
+          <VBtn v-if="canEdit && !smAndDown" color="primary" prepend-icon="tabler-edit" @click="edit = true">Edit</VBtn>
         </template>
       </div>
     </header>
@@ -233,7 +237,10 @@ function addAnswer() {
       </VCard>
     </VDialog>
 
-    <div class="bi-filters no-print">
+    <VBtn v-if="smAndDown" block variant="tonal" color="primary" class="bi-filter-toggle no-print" :prepend-icon="filtersOpen ? 'tabler-chevron-up' : 'tabler-adjustments-horizontal'" @click="filtersOpen = !filtersOpen">
+      {{ filtersOpen ? 'Hide filters' : 'Filters & dates' }}<VChip v-if="chips.length" size="x-small" color="primary" class="ms-2">{{ chips.length }}</VChip>
+    </VBtn>
+    <div v-show="!smAndDown || filtersOpen" class="bi-filters no-print">
       <div class="bi-seg">
         <button v-for="[l, fn] in presets" :key="l" :class="{ on: false }" @click="[f.from, f.to] = fn()">{{ l }}</button>
       </div>
@@ -393,6 +400,14 @@ function addAnswer() {
 .bi-mentions { display: flex; flex-direction: column; border: 1px solid #EEEEF3; border-radius: 10px; margin-bottom: 6px; overflow: hidden; }
 .bi-mentions button { border: 0; background: #fff; text-align: left; padding: 6px 10px; font-size: 13px; cursor: pointer; } .bi-mentions button:hover { background: #F8F4FD; }
 .bi-mentions small { color: #8A8A99; }
+.bi-filter-toggle { margin: 0 8px 10px; width: calc(100% - 16px); }
+@media (max-width: 600px) {
+  .bi-page { padding: 16px 8px 32px; }
+  .bi-title { font-size: 22px; }
+  .bi-ask input { font-size: 13px; }
+  .bi-ask-tips { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; }
+  .bi-ask-tips button { white-space: nowrap; }
+}
 .bi-ask { display: flex; align-items: center; gap: 10px; background: #fff; border: 1px solid #E4D7F3; border-radius: 16px; padding: 8px 10px 8px 14px; margin: 0 8px 8px; box-shadow: 0 4px 16px rgba(106,13,173,.06); }
 .bi-ask input { flex: 1; min-width: 0; border: 0; outline: 0; font-size: 14px; color: #16161F; background: transparent; }
 .bi-ask-tips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 8px 12px; }

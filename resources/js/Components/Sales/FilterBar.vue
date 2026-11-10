@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3'
-import { reactive } from 'vue'
+import { computed, reactive, ref } from 'vue'
+import { useDisplay } from 'vuetify'
 import RemoteSelect from './RemoteSelect.vue'
 
 /** The global sales filters (SRS §13.6), shared by records, dashboards and reports. */
@@ -25,11 +26,18 @@ function apply() {
   router.get(props.url, q, { preserveState: true, preserveScroll: true })
 }
 function preset(fn: () => [string, string]) { [f.from, f.to] = fn(); apply() }
+// Phones (gap 1): filters fold behind one button so the numbers are on the first screen.
+const { smAndDown } = useDisplay()
+const open = ref(false)
+const active = computed(() => Object.entries(f).filter(([, v]) => v !== null && v !== undefined && v !== '').length)
 function reset() { Object.keys(f).forEach(k => delete f[k]); apply() }
 </script>
 
 <template>
-  <VCard elevation="0" border rounded="lg" class="mb-4">
+  <VBtn v-if="smAndDown" block variant="tonal" color="primary" class="mb-3" :prepend-icon="open ? 'tabler-chevron-up' : 'tabler-adjustments-horizontal'" @click="open = !open">
+    {{ open ? 'Hide filters' : 'Filters' }}<VChip v-if="active" size="x-small" color="primary" class="ms-2">{{ active }}</VChip>
+  </VBtn>
+  <VCard v-show="!smAndDown || open" elevation="0" border rounded="lg" class="mb-4">
     <VCardText class="d-flex flex-wrap gap-2 align-center">
       <VTextField v-model="f.from" type="date" label="From" density="compact" variant="outlined" hide-details style="max-width: 160px" @change="apply" />
       <VTextField v-model="f.to" type="date" label="To" density="compact" variant="outlined" hide-details style="max-width: 160px" @change="apply" />
