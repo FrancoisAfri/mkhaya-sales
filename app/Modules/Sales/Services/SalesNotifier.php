@@ -46,6 +46,18 @@ class SalesNotifier
         return $this->send($this->recipients($companyId, $permission), $title, $body, $url, $dedupeKey, $quietDays);
     }
 
+    /** To named people (an @mention, a person's own alert), on the channels they chose. */
+    public function toUsers($users, string $title, string $body, string $url, string $dedupeKey, array $channels = ['in_app', 'email'], int $quietMinutes = 0): bool
+    {
+        $users = collect($users)->filter()->values();
+        if ($users->isEmpty() || ($quietMinutes > 0 && ! Cache::add("sales-alert:{$dedupeKey}", 1, now()->addMinutes($quietMinutes)))) {
+            return false;
+        }
+        Notification::send($users, new SalesAlert($title, $body, $url, $channels));
+
+        return true;
+    }
+
     private function send($users, string $title, string $body, string $url, string $dedupeKey, int $quietDays = 1): bool
     {
         if ($users->isEmpty() || ! Cache::add("sales-alert:{$dedupeKey}", 1, now()->addDays($quietDays))) {

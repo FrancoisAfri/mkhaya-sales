@@ -8,8 +8,8 @@ import GeoMap from './GeoMap.vue'
 import Influencers from './Influencers.vue'
 import DecompTree from './DecompTree.vue'
 
-const props = defineProps<{ widget: any; filters: Record<string, any>; editing?: boolean }>()
-const emit = defineEmits<{ filter: [{ dimension: string; key: any; label: string }]; edit: []; remove: []; duplicate: [] }>()
+const props = withDefaults(defineProps<{ widget: any; filters: Record<string, any>; editing?: boolean; endpoint?: string; shared?: boolean }>(), { endpoint: '/sales/bi/query', shared: false })
+const emit = defineEmits<{ filter: [{ dimension: string; key: any; label: string }]; edit: []; remove: []; duplicate: []; comment: [] }>()
 void echarts
 
 const v = computed(() => visual(props.widget.type))
@@ -26,16 +26,56 @@ async function load() {
   if (special.value === 'text' || special.value === 'tree') return
   loading.value = true; error.value = ''
   try {
+    if (props.shared && ['status', 'targets', 'ai'].includes(special.value ?? '')) { data.value = { unavailable: true }; return }
     if (special.value === 'status' || special.value === 'targets') {
       data.value = (await axios.get('/sales/bi/status', { params: { filters: props.filters } })).data
     } else {
-      const config = { ...v.value.defaults, ...(props.widget.config ?? {}), kind: v.value.kind }
-      data.value = (await axios.post('/sales/bi/query', { config, filters: props.filters })).data
+      const config = effectiveConfig.value
+      data.value = (await axios.post(props.endpoint, { config, filters: props.filters })).data
     }
   } catch (e: any) { error.value = e.response?.data?.message ?? 'Could not load this visual.' } finally { loading.value = false }
 }
 onMounted(load)
-watch(() => [props.filters, props.widget.config, props.widget.type], load, { deep: true })
+watch(() => [props.filters, props.widget.config, props.widget.type], () => { drill.value = []; load() }, { deep: true })
+
+// ── Drill-down (gap 4): time year → quarter → month → week → day; category → product, region → customer… ──
+const GRAIN_NEXT: Record<string, string> = { year: 'quarter', quarter: 'month', month: 'week', week: 'day' }
+const DIM_NEXT: Record<string, string> = { category: 'product', brand: 'product', customer_group: 'customer', region: 'customer', province: 'city', city: 'customer',
+  sales_team: 'salesperson', salesperson: 'customer', business_unit: 'customer', distribution_centre: 'customer' }
+const DIM_LABEL: Record<string, string> = { quarter: 'quarters', month: 'months', week: 'weeks', day: 'days', product: 'products', customer: 'customers', city: 'cities', salesperson: 'salespeople' }
+const drill = ref<{ label: string; patch: Record<string, any> }[]>([])
+const drillMode = ref(false)
+const baseConfig = computed(() => ({ ...v.value.defaults, ...(props.widget.config ?? {}), kind: v.value.kind }))
+const effectiveConfig = computed(() => drill.value.reduce((c: any, step) => ({ ...c, ...step.patch, filters: { ...(c.filters ?? {}), ...(step.patch.filters ?? {}) } }), { ...baseConfig.value }))
+const drillable = computed(() => {
+  const c: any = effectiveConfig.value
+  if (c.kind === 'time' && !c.series) return !!GRAIN_NEXT[c.grain ?? 'month']
+  if (['category', 'table'].includes(c.kind)) return !!DIM_NEXT[c.dimension]
+  return false
+})
+const iso = (d: Date) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10)
+function bucketEnd(start: string, grain: string): string {
+  const d = new Date(start + 'T00:00:00')
+  const end = grain === 'year' ? new Date(d.getFullYear(), 11, 31) : grain === 'quarter' ? new Date(d.getFullYear(), d.getMonth() + 3, 0)
+    : grain === 'month' ? new Date(d.getFullYear(), d.getMonth() + 1, 0) : new Date(d.getFullYear(), d.getMonth(), d.getDate() + 6)
+  return iso(end)
+}
+function drillInto(index: number, label: string) {
+  const c: any = effectiveConfig.value, d = data.value
+  const key = d?.keys?.[index]
+  if (key === undefined || key === 'other') return
+  if (c.kind === 'time') {
+    const grain = c.grain ?? 'month'
+    drill.value.push({ label, patch: { grain: GRAIN_NEXT[grain], period: 'dashboard', filters: { from: String(key).slice(0, 10), to: bucketEnd(String(key).slice(0, 10), grain) } } })
+  } else {
+    const dim = c.dimension, fk = ['province', 'city'].includes(dim) ? dim : `${dim}_id`
+    drill.value.push({ label, patch: { dimension: DIM_NEXT[dim], filters: { [fk]: key } } })
+  }
+  load()
+}
+function drillUp(to: number) { drill.value = drill.value.slice(0, to); load() }
+const nextLevel = computed(() => { const c: any = effectiveConfig.value; return DIM_LABEL[c.kind === 'time' ? GRAIN_NEXT[c.grain ?? 'month'] : DIM_NEXT[c.dimension]] ?? '' })
+const ownFilters = computed(() => Object.entries(props.widget.config?.filters ?? {}).filter(([, x]) => x !== null && x !== '' && x !== undefined).length)
 
 const option = computed(() => data.value && !['kpi', 'table', 'narrative', 'decomposition', 'none', 'geo', 'influencers'].includes(v.value.kind) && !['matrix_table', 'variance_table', 'ranking_table'].includes(props.widget.type) ? buildOption(props.widget.type, data.value) : null)
 const isEmpty = computed(() => {
@@ -93,6 +133,12 @@ const gaugeOption = computed(() => ({ series: [{ type: 'gauge', startAngle: 210,
 const filterable = ['customer', 'product', 'category', 'brand', 'region', 'customer_group', 'sales_team', 'salesperson', 'business_unit', 'distribution_centre', 'province', 'city']
 function onClick(p: any) {
   const d = data.value
+  if (drillMode.value && drillable.value && d?.keys) {
+    const horizontal = props.widget.type.startsWith('bar') || props.widget.type === 'lollipop' || props.widget.type === 'diverging_bar'
+    const i = p.dataIndex !== undefined ? (horizontal && d.dimension ? d.keys.length - 1 - p.dataIndex : p.dataIndex) : -1
+    if (i >= 0) drillInto(i, p.name ?? d.categories?.[i])
+    return
+  }
   if (d?.nodes) {
     if (p.dataType === 'node' && filterable.includes(d.dimensions[p.data.category])) emit('filter', { dimension: d.dimensions[p.data.category], key: p.data.key, label: p.data.name })
     return
@@ -133,25 +179,34 @@ const heat = (val: number, max: number) => `rgba(106,13,173,${Math.min(0.85, 0.0
       <div class="bi-card__title" :title="widget.title">{{ widget.title || v.name }}</div>
       <div class="bi-card__actions">
         <VProgressCircular v-if="loading" indeterminate size="14" width="2" color="primary" class="me-1" />
+        <VChip v-if="ownFilters" size="x-small" variant="tonal" color="primary" class="me-1" title="This visual has its own filters">Filtered</VChip>
+        <VBtn v-if="drillable && !editing" :icon="drillMode ? 'tabler-arrow-down-right-circle' : 'tabler-arrow-down-right'" size="x-small" :variant="drillMode ? 'tonal' : 'text'" :color="drillMode ? 'primary' : undefined"
+              :title="drillMode ? `Drill mode on: click a bar to see its ${nextLevel}` : `Drill down into ${nextLevel}`" @click="drillMode = !drillMode" />
         <template v-if="editing">
           <VBtn icon="tabler-settings" size="x-small" variant="text" @click="emit('edit')" />
           <VBtn icon="tabler-copy" size="x-small" variant="text" @click="emit('duplicate')" />
           <VBtn icon="tabler-trash" size="x-small" variant="text" color="error" @click="emit('remove')" />
         </template>
-        <VMenu v-else location="bottom end">
+        <VMenu v-else-if="!shared" location="bottom end">
           <template #activator="{ props: p }"><VBtn v-bind="p" icon="tabler-dots" size="x-small" variant="text" class="bi-card__menu" /></template>
           <VList density="compact">
             <VListItem prepend-icon="tabler-table" title="See the records" @click="drillThrough" />
             <VListItem v-if="option" prepend-icon="tabler-photo-down" title="Download PNG" @click="exportPng" />
             <VListItem prepend-icon="tabler-refresh" title="Refresh" @click="load" />
+            <VListItem prepend-icon="tabler-message-circle" title="Comment on this visual" @click="emit('comment')" />
           </VList>
         </VMenu>
       </div>
     </div>
 
+    <div v-if="drill.length" class="bi-crumbs">
+      <button @click="drillUp(0)"><VIcon icon="tabler-arrow-up-left" size="13" /> All</button>
+      <template v-for="(step, i) in drill" :key="i"><span>›</span><button :class="{ on: i === drill.length - 1 }" @click="drillUp(i + 1)">{{ step.label }}</button></template>
+    </div>
     <div class="bi-card__body">
       <div v-if="error" class="bi-empty"><VIcon icon="tabler-alert-circle" color="error" />{{ error }}</div>
-      <DecompTree v-else-if="special === 'tree'" :widget="widget" :filters="filters" />
+      <DecompTree v-else-if="special === 'tree'" :widget="widget" :filters="filters" :endpoint="endpoint" />
+      <div v-else-if="data?.unavailable" class="bi-empty"><VIcon icon="tabler-lock" size="24" />Not included in a shared link.</div>
       <div v-else-if="special === 'text'" class="bi-text">{{ textValue || 'Add your text in the visual settings.' }}</div>
       <div v-else-if="!data && loading" class="bi-skeleton" />
       <template v-else-if="data">
@@ -264,6 +319,9 @@ const heat = (val: number, max: number) => `rgba(106,13,173,${Math.min(0.85, 0.0
 .bi-card__actions { display: flex; align-items: center; }
 .bi-card__menu { opacity: 0; transition: opacity .15s; }
 .bi-card:hover .bi-card__menu { opacity: 1; }
+.bi-crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 0 18px 4px; font-size: 12px; color: #8A8A99; }
+.bi-crumbs button { border: 0; background: #F6F4FA; color: #5B5B6E; border-radius: 6px; padding: 1px 7px; cursor: pointer; font-weight: 600; display: inline-flex; align-items: center; gap: 2px; }
+.bi-crumbs button.on { background: #F3EEFA; color: #6A0DAD; }
 .bi-card__body { flex: 1; min-height: 0; padding: 4px 14px 14px; position: relative; }
 .bi-fill { width: 100%; height: 100%; }
 .bi-kpi { display: flex; flex-direction: column; justify-content: center; height: 100%; padding: 0 4px; }

@@ -1,6 +1,7 @@
 <?php
 
 use App\Modules\Sales\Http\Controllers\AIUsageController;
+use App\Modules\Sales\Http\Controllers\BICollaborationController;
 use App\Modules\Sales\Http\Controllers\BIController;
 use App\Modules\Sales\Http\Controllers\DashboardController;
 use App\Modules\Sales\Http\Controllers\ImportController;
@@ -100,6 +101,18 @@ Route::prefix('sales')->name('sales.')->middleware(\App\Modules\Sales\Http\Middl
     Route::get('bi', [BIController::class, 'index'])->name('bi.index');
     Route::post('bi', [BIController::class, 'store'])->name('bi.store');
     Route::post('bi/query', [BIController::class, 'query'])->middleware('throttle:600,1,sales.bi.query')->name('bi.query');
+    Route::post('bi/ask', [BIController::class, 'ask'])->middleware('throttle:30,1,sales.bi.ask')->name('bi.ask');
+    // Working together on dashboards (gaps 8, 9, 12).
+    Route::get('bi/people', [BICollaborationController::class, 'people'])->name('bi.people');
+    Route::get('bi/{uuid}/versions', [BICollaborationController::class, 'versions'])->name('bi.versions');
+    Route::post('bi/{uuid}/versions/{id}/restore', [BICollaborationController::class, 'restore'])->whereNumber('id')->name('bi.versions.restore');
+    Route::post('bi/{uuid}/certify', [BICollaborationController::class, 'certify'])->name('bi.certify');
+    Route::get('bi/{uuid}/comments', [BICollaborationController::class, 'comments'])->name('bi.comments');
+    Route::post('bi/{uuid}/comments', [BICollaborationController::class, 'comment'])->middleware('throttle:60,1,sales.bi.comment')->name('bi.comments.store');
+    Route::post('bi/{uuid}/comments/{id}/resolve', [BICollaborationController::class, 'resolveComment'])->whereNumber('id')->name('bi.comments.resolve');
+    Route::get('bi/{uuid}/shares', [BICollaborationController::class, 'shares'])->name('bi.shares');
+    Route::post('bi/{uuid}/shares', [BICollaborationController::class, 'share'])->middleware('throttle:20,1,sales.bi.share')->name('bi.shares.store');
+    Route::delete('bi/{uuid}/shares/{id}', [BICollaborationController::class, 'revoke'])->whereNumber('id')->name('bi.shares.revoke');
     Route::get('bi/status', [BIController::class, 'status'])->name('bi.status');
     Route::post('bi/measures', [BIController::class, 'saveMeasure'])->name('bi.measures');
     Route::get('bi/{uuid}', [BIController::class, 'show'])->whereUuid('uuid')->name('bi.show');

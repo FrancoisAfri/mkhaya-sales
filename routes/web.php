@@ -113,6 +113,10 @@ Route::middleware(['auth', 'auth.lock', 'check.banned', 'prevent-back-history', 
     });
 });
 
+// Read-only dashboard share links — no login; the token is the key (gap 8).
+Route::get('/share/{token}', [\App\Modules\Sales\Http\Controllers\BIShareController::class, 'show'])->where('token', '[A-Za-z0-9]{48}')->middleware('throttle:60,1,share.show')->name('share.show');
+Route::post('/share/{token}/query', [\App\Modules\Sales\Http\Controllers\BIShareController::class, 'query'])->where('token', '[A-Za-z0-9]{48}')->middleware('throttle:600,1,share.query')->name('share.query');
+
 Route::post('/auth/sso/discover', [\App\Core\Auth\Controllers\SsoController::class, 'discover'])->name('sso.discover');
 Route::get('/auth/sso/redirect', [\App\Core\Auth\Controllers\SsoController::class, 'redirect'])->name('sso.redirect');
 Route::get('/auth/sso/callback', [\App\Core\Auth\Controllers\SsoController::class, 'callback'])->name('sso.callback');

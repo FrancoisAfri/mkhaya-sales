@@ -6,7 +6,7 @@ import axios from 'axios'
 import { computed, reactive, ref, watch } from 'vue'
 import { fmt } from './visuals'
 
-const props = defineProps<{ widget: any; filters: Record<string, any> }>()
+const props = withDefaults(defineProps<{ widget: any; filters: Record<string, any>; endpoint?: string }>(), { endpoint: '/sales/bi/query' })
 const DIMS: Record<string, string> = { region: 'Region', province: 'Province', customer_group: 'Customer group', category: 'Category', brand: 'Brand', sales_team: 'Sales team', salesperson: 'Salesperson', distribution_centre: 'Distribution centre', customer: 'Customer', product: 'Product' }
 const TEXT = ['province', 'city']
 const filterKey = (d: string) => (TEXT.includes(d) ? d : `${d}_id`)
@@ -22,7 +22,7 @@ const used = (i: number) => levels.slice(0, i).map(l => l.dim)
 
 async function query(dim: string | null, extra: Record<string, any>) {
   const config = { kind: dim ? 'category' : 'kpi', measures: [measure.value], dimension: dim ?? 'customer', top: 8, other: true, period: period.value }
-  return (await axios.post('/sales/bi/query', { config, filters: { ...props.filters, ...extra } })).data
+  return (await axios.post(props.endpoint, { config, filters: { ...props.filters, ...extra } })).data
 }
 async function loadTotal() {
   levels.splice(0)

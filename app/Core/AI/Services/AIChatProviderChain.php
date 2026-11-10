@@ -29,7 +29,8 @@ class AIChatProviderChain
         $chain = $cfg['chain'] ?? ['openai'];
         $providers = $cfg['providers'] ?? [];
         $temperature = (float) ($options['temperature'] ?? $cfg['temperature'] ?? 0.3);
-        $timeout = (int) ($cfg['timeout'] ?? 20);
+        // A caller that needs a quick answer (e.g. "ask a question, get a chart") can shorten the wait per provider.
+        $timeout = (int) ($options['timeout'] ?? $cfg['timeout'] ?? 20);
         $maxTokens = isset($options['max_tokens']) ? (int) $options['max_tokens'] : null;
 
         $tried = [];

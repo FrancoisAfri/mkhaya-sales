@@ -96,6 +96,11 @@ class BIController extends Controller
                 $data[$j] = json_encode($data[$j]);
             }
         }
+        // Keep the layout as it was, so it can be restored (gap 12); a changed dashboard loses its certification.
+        if (array_key_exists('widgets', $data) && $data['widgets'] !== $dash->widgets) {
+            BICollaborationController::snapshot($dash, $request->user()->id);
+            $data['certified'] = false;
+        }
         DB::table('bi_dashboards')->where('id', $dash->id)->update($data + ['updated_at' => now()]);
 
         return $request->wantsJson() ? response()->json(['ok' => true]) : back()->with('success', 'Dashboard saved.');
@@ -117,6 +122,15 @@ class BIController extends Controller
         $data = $request->validate(['config' => ['required', 'array'], 'filters' => ['nullable', 'array']]);
 
         return response()->json($this->bi->run($data['config'], $this->query->filters(new Request($data['filters'] ?? [])), $request->user()));
+    }
+
+    /** "Ask a question, get a chart" (gap 2): words → a validated visual configuration. */
+    public function ask(Request $request, \App\Modules\Sales\Services\BI\AskService $ask): JsonResponse
+    {
+        abort_unless($request->user()->can('dashboards.view'), 403);
+        $data = $request->validate(['question' => ['required', 'string', 'min:3', 'max:300']]);
+
+        return response()->json($ask->ask($data['question']));
     }
 
     /** Targets table, data freshness — the non-chart widgets (§5.1 bottom section). */
@@ -172,7 +186,9 @@ class BIController extends Controller
         return Inertia::render('Modules/Sales/BI/Dashboard', [
             'dashboard' => ['uuid' => $dash->uuid, 'name' => $dash->name, 'description' => $dash->description, 'visibility' => $dash->visibility,
                 'widgets' => json_decode($dash->widgets, true), 'shared_roles' => json_decode($dash->shared_roles ?? '[]', true),
-                'owner_id' => $dash->owner_id, 'template_key' => $dash->template_key],
+                'owner_id' => $dash->owner_id, 'template_key' => $dash->template_key, 'certified' => (bool) ($dash->certified ?? false)],
+            'canCertify' => $request->user()->can('settings.manage'),
+            'canShareLink' => $this->canEdit($request, $dash) || $request->user()->can('reports.export'),
             'landing' => $landing,
             'editing' => $request->boolean('edit') && $this->canEdit($request, $dash),
             'canEdit' => $this->canEdit($request, $dash),

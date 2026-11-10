@@ -10,11 +10,12 @@ class SalesAlert extends Notification
 {
     use Queueable;
 
-    public function __construct(public string $title, public string $body, public string $url) {}
+    /** @param array<int, string> $channels in_app and/or email (a person's own alert chooses; system alerts use both) */
+    public function __construct(public string $title, public string $body, public string $url, public array $channels = ['in_app', 'email']) {}
 
     public function via($notifiable): array
     {
-        return ['database', 'mail'];
+        return array_values(array_filter([in_array('in_app', $this->channels, true) ? 'database' : null, in_array('email', $this->channels, true) ? 'mail' : null])) ?: ['database'];
     }
 
     public function toMail($notifiable): MailMessage
