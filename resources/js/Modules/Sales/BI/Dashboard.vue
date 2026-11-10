@@ -192,7 +192,7 @@ function exportPdf() { window.print() }
 .bi-title { margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -.6px; color: #16161F; }
 .bi-title-edit :deep(input) { font-size: 26px; font-weight: 700; }
 .bi-sub { margin: 4px 0 0; font-size: 13px; color: #8A8A99; }
-.bi-header__actions { display: flex; gap: 8px; align-items: center; }
+.bi-header__actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .bi-filters { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; background: #fff; border: 1px solid #EEEEF3; border-radius: 16px; padding: 10px 12px; margin: 0 8px 12px; }
 .bi-filter { min-width: 150px; max-width: 210px; }
 .bi-seg { display: inline-flex; background: #F3F1F8; border-radius: 10px; padding: 3px; }

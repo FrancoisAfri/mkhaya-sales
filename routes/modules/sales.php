@@ -21,7 +21,7 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('sales')->name('sales.')->middleware(\App\Modules\Sales\Http\Middleware\RequireSalesCompany::class)->group(function () {
     // Master data (phase 2)
     Route::get('master/{resource}', [MasterDataController::class, 'index'])->name('master.index');
-    Route::get('lookup/{resource}', [MasterDataController::class, 'lookup'])->middleware('throttle:240,1')->name('lookup');
+    Route::get('lookup/{resource}', [MasterDataController::class, 'lookup'])->middleware('throttle:240,1,sales.lookup')->name('lookup');
     Route::get('master/{resource}/export', [MasterDataController::class, 'export'])->name('master.export');
     Route::post('master/{resource}', [MasterDataController::class, 'store'])->name('master.store');
     Route::put('master/{resource}/{id}', [MasterDataController::class, 'update'])->whereNumber('id')->name('master.update');
@@ -32,7 +32,7 @@ Route::prefix('sales')->name('sales.')->middleware(\App\Modules\Sales\Http\Middl
     // Data Import Centre (phase 3)
     Route::get('imports', [ImportController::class, 'index'])->name('imports.index');
     Route::get('imports/template/{target}', [ImportController::class, 'template'])->name('imports.template');
-    Route::post('imports', [ImportController::class, 'store'])->middleware('throttle:30,1')->name('imports.store');
+    Route::post('imports', [ImportController::class, 'store'])->middleware('throttle:30,1,sales.imports.store')->name('imports.store');
     Route::get('imports/{batch}', [ImportController::class, 'show'])->name('imports.show');
     Route::put('imports/{batch}', [ImportController::class, 'update'])->name('imports.update');
     Route::post('imports/{batch}/source-totals', [ImportController::class, 'sourceTotals'])->name('imports.source-totals');
@@ -60,8 +60,8 @@ Route::prefix('sales')->name('sales.')->middleware(\App\Modules\Sales\Http\Middl
     Route::get('mailboxes', [MailboxController::class, 'index'])->name('mailboxes.index');
     Route::post('mailboxes', [MailboxController::class, 'store'])->name('mailboxes.store');
     Route::put('mailboxes/{mailbox}', [MailboxController::class, 'update'])->name('mailboxes.update');
-    Route::post('mailboxes/{mailbox}/test', [MailboxController::class, 'test'])->middleware('throttle:10,1')->name('mailboxes.test');
-    Route::post('mailboxes/{mailbox}/run', [MailboxController::class, 'run'])->middleware('throttle:10,1')->name('mailboxes.run');
+    Route::post('mailboxes/{mailbox}/test', [MailboxController::class, 'test'])->middleware('throttle:10,1,sales.mailboxes.test')->name('mailboxes.test');
+    Route::post('mailboxes/{mailbox}/run', [MailboxController::class, 'run'])->middleware('throttle:10,1,sales.mailboxes.run')->name('mailboxes.run');
 
     // Dashboards, forecast and reports (phase 6)
     Route::get('dashboard/{view?}', [DashboardController::class, 'show'])->name('dashboard');
@@ -69,14 +69,14 @@ Route::prefix('sales')->name('sales.')->middleware(\App\Modules\Sales\Http\Middl
     Route::get('insights', [InsightsController::class, 'index'])->name('insights');
     Route::get('ai-usage', [AIUsageController::class, 'index'])->name('ai-usage');
     Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
-    Route::get('reports/export/{format}', [ReportController::class, 'export'])->middleware('throttle:30,1')->name('reports.export');
+    Route::get('reports/export/{format}', [ReportController::class, 'export'])->middleware('throttle:30,1,sales.reports.export')->name('reports.export');
     Route::post('reports/saved', [ReportController::class, 'save'])->name('reports.save');
     Route::delete('reports/saved/{id}', [ReportController::class, 'destroy'])->whereNumber('id')->name('reports.saved.destroy');
     Route::get('reports/schedules', [ReportScheduleController::class, 'index'])->name('reports.schedules');
     Route::post('reports/schedules', [ReportScheduleController::class, 'store'])->name('reports.schedules.store');
     Route::put('reports/schedules/{id}', [ReportScheduleController::class, 'update'])->whereNumber('id')->name('reports.schedules.update');
     Route::delete('reports/schedules/{id}', [ReportScheduleController::class, 'destroy'])->whereNumber('id')->name('reports.schedules.destroy');
-    Route::post('reports/schedules/{id}/send', [ReportScheduleController::class, 'send'])->whereNumber('id')->middleware('throttle:10,1')->name('reports.schedules.send');
+    Route::post('reports/schedules/{id}/send', [ReportScheduleController::class, 'send'])->whereNumber('id')->middleware('throttle:10,1,sales.reports.schedules.send')->name('reports.schedules.send');
 
     // Targets and the approvals matrix (phase 7)
     Route::get('targets', [TargetController::class, 'index'])->name('targets.index');
@@ -99,7 +99,7 @@ Route::prefix('sales')->name('sales.')->middleware(\App\Modules\Sales\Http\Middl
     // BI dashboards and builder
     Route::get('bi', [BIController::class, 'index'])->name('bi.index');
     Route::post('bi', [BIController::class, 'store'])->name('bi.store');
-    Route::post('bi/query', [BIController::class, 'query'])->middleware('throttle:600,1')->name('bi.query');
+    Route::post('bi/query', [BIController::class, 'query'])->middleware('throttle:600,1,sales.bi.query')->name('bi.query');
     Route::get('bi/status', [BIController::class, 'status'])->name('bi.status');
     Route::post('bi/measures', [BIController::class, 'saveMeasure'])->name('bi.measures');
     Route::get('bi/{uuid}', [BIController::class, 'show'])->whereUuid('uuid')->name('bi.show');
