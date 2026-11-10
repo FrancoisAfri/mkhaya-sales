@@ -57,12 +57,14 @@ return Application::configure(basePath: dirname(__DIR__))
         \App\Modules\Sales\Console\SalesDemo::class,
         \App\Modules\Sales\Console\RunPerformanceAlerts::class,
         \App\Modules\Sales\Console\RunReportSchedules::class,
+        \App\Modules\Sales\Console\RunUserAlerts::class,
     ])
     ->withSchedule(function (Schedule $schedule) {
         // Sales Intelligence: each mailbox runs at its own configured time (default 03:30 SAST).
         $schedule->command(\App\Modules\Sales\Console\RunMailboxes::class)->everyMinute()->withoutOverlapping();
         $schedule->command(\App\Modules\Sales\Console\RunPerformanceAlerts::class)->everyMinute()->withoutOverlapping();
         $schedule->command(\App\Modules\Sales\Console\RunReportSchedules::class)->everyMinute()->withoutOverlapping();
+        $schedule->command(\App\Modules\Sales\Console\RunUserAlerts::class)->everyMinute()->withoutOverlapping();
 
         // Platform subscriptions and trials (carried over from the hub).
         $schedule->command(\App\Modules\Tenancy\Console\RunSubscriptionBilling::class)->monthlyOn(1, '02:00')->withoutOverlapping();
