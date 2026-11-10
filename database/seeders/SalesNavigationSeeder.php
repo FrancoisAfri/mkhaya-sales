@@ -33,6 +33,7 @@ class SalesNavigationSeeder extends Seeder
             ['Customers', 'sales/master/customers'],
             ['Product classifications', 'sales/master/categories'],
             ['Regions & teams', 'sales/master/regions'],
+            ['Stock, promotions & prices', 'sales/trade'],
         ]],
         ['code' => 'sales_targets', 'name' => 'Targets', 'icon' => 'bullseye', 'path' => '/sales/targets', 'ribbons' => [
             ['Targets', 'sales/targets'],

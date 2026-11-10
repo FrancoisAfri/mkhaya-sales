@@ -20,7 +20,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 /** Data Import Centre (SRS IMP-001 §9.3–9.6, HIS-001 §10.5). */
 class ImportController extends Controller
 {
-    private const PERMS = ['sales' => 'imports.historical', 'products' => 'imports.products', 'customers' => 'imports.customers', 'targets' => 'targets.create'];
+    private const PERMS = ['sales' => 'imports.historical', 'products' => 'imports.products', 'customers' => 'imports.customers', 'targets' => 'targets.create',
+        'stock' => 'imports.products', 'promotions' => 'imports.products', 'prices' => 'imports.products'];
 
     public function index(Request $request): Response
     {

@@ -2,6 +2,7 @@
 
 use App\Modules\Sales\Http\Controllers\AIUsageController;
 use App\Modules\Sales\Http\Controllers\AlertController;
+use App\Modules\Sales\Http\Controllers\TradeController;
 use App\Modules\Sales\Http\Controllers\BICollaborationController;
 use App\Modules\Sales\Http\Controllers\BIController;
 use App\Modules\Sales\Http\Controllers\DashboardController;
@@ -104,6 +105,7 @@ Route::prefix('sales')->name('sales.')->middleware(\App\Modules\Sales\Http\Middl
     Route::post('bi/query', [BIController::class, 'query'])->middleware('throttle:600,1,sales.bi.query')->name('bi.query');
     Route::post('bi/ask', [BIController::class, 'ask'])->middleware('throttle:30,1,sales.bi.ask')->name('bi.ask');
     // Working together on dashboards (gaps 8, 9, 12).
+    Route::get('trade', [TradeController::class, 'index'])->name('trade');
     Route::get('alerts', [AlertController::class, 'index'])->name('alerts.index');
     Route::post('alerts', [AlertController::class, 'store'])->name('alerts.store');
     Route::put('alerts/{uuid}', [AlertController::class, 'update'])->whereUuid('uuid')->name('alerts.update');

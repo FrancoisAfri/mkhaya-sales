@@ -16,7 +16,14 @@ final class ImportFields
         'products' => 'Products',
         'customers' => 'Customers',
         'targets' => 'Targets',
+        // Data beside sales (gap 7).
+        'stock' => 'Stock on hand',
+        'promotions' => 'Promotions',
+        'prices' => 'Price lists',
     ];
+
+    /** Import types that sit beside sales and point at existing products (and optionally customers). */
+    public const EXTRA = ['stock', 'promotions', 'prices'];
 
     public static function for(string $target): array
     {
@@ -68,6 +75,30 @@ final class ImportFields
                 'latitude' => ['label' => 'Latitude', 'type' => 'number', 'aliases' => ['latitude', 'lat', 'gps lat', 'y']],
                 'longitude' => ['label' => 'Longitude', 'type' => 'number', 'aliases' => ['longitude', 'lng', 'lon', 'long', 'gps long', 'x']],
                 'status' => ['label' => 'Status (active/inactive)', 'type' => 'text', 'aliases' => ['status', 'active']],
+            ],
+            'stock' => [
+                'snapshot_date' => ['label' => 'Stock date', 'type' => 'date', 'required' => true, 'aliases' => ['date', 'stock date', 'snapshot date', 'as at']],
+                'product_code' => ['label' => 'Product code', 'type' => 'text', 'required' => true, 'aliases' => ['product code', 'item code', 'sku', 'material', 'stock code']],
+                'distribution_centre' => ['label' => 'Distribution centre', 'type' => 'text', 'aliases' => ['dc', 'depot', 'warehouse', 'distribution centre', 'site']],
+                'cases_on_hand' => ['label' => 'Cases on hand', 'type' => 'number', 'required' => true, 'aliases' => ['cases on hand', 'stock', 'on hand', 'soh', 'qty on hand', 'cases']],
+            ],
+            'promotions' => [
+                'name' => ['label' => 'Promotion name', 'type' => 'text', 'required' => true, 'aliases' => ['promotion', 'promo', 'name', 'promotion name']],
+                'start_date' => ['label' => 'Start date', 'type' => 'date', 'required' => true, 'aliases' => ['start', 'start date', 'from']],
+                'end_date' => ['label' => 'End date', 'type' => 'date', 'required' => true, 'aliases' => ['end', 'end date', 'to']],
+                'product_code' => ['label' => 'Product code', 'type' => 'text', 'aliases' => ['product code', 'sku', 'material']],
+                'category' => ['label' => 'Category', 'type' => 'text', 'aliases' => ['category']],
+                'customer_code' => ['label' => 'Customer code', 'type' => 'text', 'aliases' => ['customer code', 'account', 'acc no']],
+                'customer_group' => ['label' => 'Customer group', 'type' => 'text', 'aliases' => ['customer group', 'retailer', 'chain', 'group']],
+                'discount_pct' => ['label' => 'Discount %', 'type' => 'number', 'aliases' => ['discount', 'discount %', 'discount pct', 'off']],
+                'mechanic' => ['label' => 'Mechanic', 'type' => 'text', 'aliases' => ['mechanic', 'deal', 'type']],
+            ],
+            'prices' => [
+                'product_code' => ['label' => 'Product code', 'type' => 'text', 'required' => true, 'aliases' => ['product code', 'sku', 'material', 'item code']],
+                'customer_group' => ['label' => 'Customer group (blank = all)', 'type' => 'text', 'aliases' => ['customer group', 'price list', 'retailer', 'chain']],
+                'price_per_case' => ['label' => 'Price per case', 'type' => 'number', 'required' => true, 'aliases' => ['price', 'price per case', 'case price', 'list price']],
+                'valid_from' => ['label' => 'Valid from', 'type' => 'date', 'required' => true, 'aliases' => ['valid from', 'from', 'effective', 'start']],
+                'valid_to' => ['label' => 'Valid to', 'type' => 'date', 'aliases' => ['valid to', 'to', 'end']],
             ],
             'targets' => [
                 'name' => ['label' => 'Target name', 'type' => 'text', 'required' => true, 'aliases' => ['target', 'target name', 'name']],

@@ -39,6 +39,8 @@ class SalesDemo extends Command
             if ($this->option('master-only')) {
                 $this->masterData($company->id);
                 $this->targets($company->id, $admin->id);
+            $this->trade($company->id);
+                $this->trade($company->id);
 
                 return;
             }
@@ -155,6 +157,37 @@ class SalesDemo extends Command
             }
         }
         \App\Modules\Sales\Services\BI\BIQueryService::invalidate($companyId);
+    }
+
+    /** Demo stock on hand, three promotions and a price list (gap 7), sized from the demo's own sales. */
+    private function trade(int $companyId): void
+    {
+        $last = CarbonImmutable::parse(DB::table('sales_records')->where('company_id', $companyId)->where('status', 'active')->max('transaction_date') ?? 'today');
+        $products = Models\Product::where('company_id', $companyId)->orderBy('product_code')->get();
+        $dc = Models\DistributionCentre::firstOrCreate(['name' => 'Midrand DC']);
+        foreach (['stock_levels', 'promotions', 'price_lists'] as $t) {
+            DB::table($t)->where('company_id', $companyId)->delete();
+        }
+        foreach ($products as $i => $p) {
+            $daily = (float) DB::table('sales_records')->where('company_id', $companyId)->where('product_id', $p->id)
+                ->whereBetween('transaction_date', [$last->subDays(27)->toDateString(), $last->toDateString()])->sum('quantity') / 28;
+            $cover = [3, 9, 21, 35, 75, 18][$i % 6];   // a mix of short, healthy and long cover
+            DB::table('stock_levels')->insert(['company_id' => $companyId, 'snapshot_date' => $last->toDateString(), 'product_id' => $p->id, 'distribution_centre_id' => $dc->id,
+                'cases_on_hand' => round($daily * $cover), 'created_at' => now(), 'updated_at' => now()]);
+            $avg = (float) DB::table('sales_records')->where('company_id', $companyId)->where('product_id', $p->id)->selectRaw('sum(net_value) / nullif(sum(quantity),0) as p')->value('p');
+            DB::table('price_lists')->insert(['company_id' => $companyId, 'product_id' => $p->id, 'customer_group_id' => null, 'price_per_case' => round(($avg ?: 50) * [1.0, 1.04, 1.12][$i % 3], 2),
+                'valid_from' => $last->startOfYear()->toDateString(), 'valid_to' => null, 'created_at' => now(), 'updated_at' => now()]);
+        }
+        $cat = fn ($n) => Models\ProductCategory::where('name', $n)->value('id');
+        $grp = fn ($n) => Models\CustomerGroup::where('name', $n)->value('id');
+        foreach ([
+            ['Pizza month at Spar', $last->subDays(20), $last->subDays(6), null, $cat('Pizza'), null, $grp('Spar Group'), 15, 'Buy 2 save 15%'],
+            ['Cakes festive launch', $last->subDays(5), $last->addDays(25), null, $cat('Cakes'), null, null, 10, 'Shelf price -10%'],
+            ['Frozen meals 3 for 2', $last->subMonths(2)->startOfMonth(), $last->subMonths(2)->startOfMonth()->addDays(13), null, $cat('Frozen Meals'), null, $grp('Shoprite Checkers Group'), 33, '3 for 2'],
+        ] as [$name, $s, $e, $prod, $category, $cust, $group, $disc, $mech]) {
+            DB::table('promotions')->insert(['company_id' => $companyId, 'name' => $name, 'start_date' => $s->toDateString(), 'end_date' => $e->toDateString(), 'product_id' => $prod,
+                'category_id' => $category, 'customer_id' => $cust, 'customer_group_id' => $group, 'discount_pct' => $disc, 'mechanic' => $mech, 'created_at' => now(), 'updated_at' => now()]);
+        }
     }
 
     /** Real suburb coordinates (with a small offset per store) so the demo maps have something to show. */

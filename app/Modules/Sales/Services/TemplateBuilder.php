@@ -19,6 +19,8 @@ class TemplateBuilder
         'customer_group' => 'Retail', 'status' => 'active', 'alternative_name' => 'Example Store',
         'name' => 'Gauteng net sales December', 'metric' => 'net_value', 'method' => 'fixed', 'period_type' => 'monthly',
         'start_date' => '2026-12-01', 'end_date' => '2026-12-31', 'target_value' => 500000, 'customer' => '', 'product' => '',
+        'snapshot_date' => '2026-11-07', 'distribution_centre' => 'Midrand DC', 'cases_on_hand' => 340, 'discount_pct' => 15, 'mechanic' => 'Buy 2 save 15%',
+        'price_per_case' => 186.00, 'valid_from' => '2026-11-01', 'valid_to' => '',
     ];
 
     public function build(string $target, ?ReportLayout $layout = null): string

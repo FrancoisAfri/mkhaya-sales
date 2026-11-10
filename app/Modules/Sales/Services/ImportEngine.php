@@ -146,7 +146,12 @@ class ImportEngine
                 }
             }
 
-            if (! $errors && ! in_array($batch->target, ['sales', 'targets'], true)) {
+            if (! $errors && in_array($batch->target, ImportFields::EXTRA, true)) {
+                [$data, $errors, $key] = $this->resolveExtra($batch->target, $data, $matcher);
+                $status = $errors ? 'invalid' : 'valid';
+            }
+
+            if (! $errors && ! in_array($batch->target, array_merge(['sales', 'targets'], ImportFields::EXTRA), true)) {
                 [$status, $msg] = $this->masterStatus($batch, $data);
                 if ($msg) {
                     $status === 'invalid' || $status === 'duplicate' ? $errors[] = $msg : $warnings[] = $msg;
@@ -367,9 +372,12 @@ class ImportEngine
         $batch->update(['status' => 'committing', 'confirmed_by' => $by?->id, 'confirmed_at' => now()]);
 
         try {
-            $result = DB::transaction(fn () => $batch->target === 'sales'
-                ? $this->commitSales($batch)
-                : ($batch->target === 'targets' ? $this->commitTargets($batch, $by) : $this->commitMasters($batch)));
+            $result = DB::transaction(fn () => match (true) {
+                $batch->target === 'sales' => $this->commitSales($batch),
+                $batch->target === 'targets' => $this->commitTargets($batch, $by),
+                in_array($batch->target, ImportFields::EXTRA, true) => $this->commitExtra($batch),
+                default => $this->commitMasters($batch),
+            });
         } catch (\Throwable $e) {
             $batch->update(['status' => 'failed', 'error' => 'Nothing was saved: ' . $e->getMessage(), 'completed_at' => now()]);
             report($e);
@@ -488,6 +496,74 @@ class ImportEngine
         });
 
         return ['inserted_rows' => $inserted, 'updated_rows' => 0];
+    }
+
+    /**
+     * Stock, promotions and price lists point at products that already exist (nothing is invented).
+     *
+     * @return array{0: array, 1: string[], 2: ?string} data with ids, errors, duplicate key
+     */
+    private function resolveExtra(string $target, array $d, MasterMatcher $matcher): array
+    {
+        $errors = [];
+        $d['product_id'] = ! empty($d['product_code']) ? $matcher->product($d['product_code'], null) : null;
+        if (! empty($d['product_code']) && ! $d['product_id']) {
+            $errors[] = "Unknown product \"{$d['product_code']}\" — add it in Products first.";
+        }
+        $d['distribution_centre_id'] = $matcher->lookup('distribution_centres', $d['distribution_centre'] ?? null);
+        $d['customer_group_id'] = $matcher->lookup('customer_groups', $d['customer_group'] ?? null);
+        $d['category_id'] = $matcher->lookup('product_categories', $d['category'] ?? null);
+        $d['customer_id'] = ! empty($d['customer_code']) ? $matcher->customer($d['customer_code'], null) : null;
+        foreach (['customer_group' => 'customer group', 'category' => 'category', 'distribution_centre' => 'distribution centre'] as $k => $label) {
+            if (! empty($d[$k]) && ! $d["{$k}_id"]) {
+                $errors[] = "Unknown {$label} \"{$d[$k]}\".";
+            }
+        }
+        if ($target === 'promotions' && ! empty($d['start_date']) && ! empty($d['end_date']) && $d['end_date'] < $d['start_date']) {
+            $errors[] = 'The promotion ends before it starts.';
+        }
+        if ($target === 'promotions' && empty($d['product_id']) && empty($d['category_id']) && empty($d['customer_id']) && empty($d['customer_group_id'])) {
+            $errors[] = 'Say what the promotion covers: a product, category, customer or customer group.';
+        }
+        $key = $errors ? null : match ($target) {
+            'stock' => "{$d['snapshot_date']}|{$d['product_id']}|{$d['distribution_centre_id']}",
+            'prices' => "{$d['product_id']}|{$d['customer_group_id']}|{$d['valid_from']}",
+            default => mb_strtolower($d['name']) . "|{$d['start_date']}|{$d['product_id']}|{$d['category_id']}|{$d['customer_id']}|{$d['customer_group_id']}",
+        };
+
+        return [$d, $errors, $key];
+    }
+
+    /** Stock replaces the same date / product / DC; promotions and prices replace the same key. */
+    private function commitExtra(ImportBatch $batch): array
+    {
+        $inserted = $updated = 0;
+        $c = $batch->company_id;
+        ImportRow::where('batch_id', $batch->id)->whereIn('status', ['valid', 'warning'])->orderBy('row_number')->each(function ($row) use ($batch, $c, &$inserted, &$updated) {
+            $d = $row->data;
+            [$table, $match, $values] = match ($batch->target) {
+                'stock' => ['stock_levels', ['snapshot_date' => $d['snapshot_date'], 'product_id' => $d['product_id'], 'distribution_centre_id' => $d['distribution_centre_id']],
+                    ['cases_on_hand' => $d['cases_on_hand']]],
+                'prices' => ['price_lists', ['product_id' => $d['product_id'], 'customer_group_id' => $d['customer_group_id'], 'valid_from' => $d['valid_from']],
+                    ['price_per_case' => $d['price_per_case'], 'valid_to' => $d['valid_to'] ?? null]],
+                default => ['promotions', ['name' => $d['name'], 'start_date' => $d['start_date'], 'product_id' => $d['product_id'], 'category_id' => $d['category_id'],
+                    'customer_id' => $d['customer_id'], 'customer_group_id' => $d['customer_group_id']],
+                    ['end_date' => $d['end_date'], 'discount_pct' => $d['discount_pct'] ?? null, 'mechanic' => $d['mechanic'] ?? null]],
+            };
+            $q = DB::table($table)->where('company_id', $c);
+            foreach ($match as $k => $v) {
+                $v === null ? $q->whereNull($k) : $q->where($k, $v);
+            }
+            if ($id = $q->value('id')) {
+                DB::table($table)->where('id', $id)->update($values + ['import_batch_id' => $batch->id, 'updated_at' => now()]);
+                $updated++;
+            } else {
+                DB::table($table)->insert(['company_id' => $c] + $match + $values + ['import_batch_id' => $batch->id, 'created_at' => now(), 'updated_at' => now()]);
+                $inserted++;
+            }
+        });
+
+        return ['inserted_rows' => $inserted, 'updated_rows' => $updated];
     }
 
     /** @return array{0: array, 1: string[]} */
