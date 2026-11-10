@@ -96,8 +96,8 @@ class MailboxController extends Controller
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:150'],
-            'provider' => ['required', Rule::in(['graph', 'imap', 'sftp', 'sharepoint'])],
-            'mailbox_address' => ['required', 'string', 'max:190'],
+            'provider' => ['required', Rule::in(['graph', 'imap', 'sftp', 'sharepoint', 'database', 'api'])],
+            'mailbox_address' => ['required_unless:provider,api', 'nullable', 'string', 'max:190'],
             'folder' => ['nullable', 'string', 'max:120'],
             'sender' => ['nullable', 'string', 'max:190'],
             'subject_pattern' => ['nullable', 'string', 'max:190'],
@@ -124,11 +124,30 @@ class MailboxController extends Controller
             'credentials.private_key' => ['nullable', 'string', 'max:10000'],
             'credentials.host_fingerprint' => ['nullable', 'string', 'max:120'],
             'credentials.drive_id' => ['nullable', 'string', 'max:200'],
+            'credentials.db_driver' => ['nullable', Rule::in(['sqlsrv', 'mysql', 'pgsql', 'odbc'])],
+            'credentials.database' => ['nullable', 'string', 'max:120'],
+            'credentials.odbc_dsn' => ['nullable', 'string', 'max:300'],
+            'credentials.query' => ['nullable', 'string', 'max:10000'],
+            'credentials.url' => ['nullable', 'string', 'max:1000'],
+            'credentials.auth_type' => ['nullable', Rule::in(['none', 'bearer', 'header'])],
+            'credentials.header_name' => ['nullable', 'string', 'max:60'],
+            'credentials.rows_path' => ['nullable', 'string', 'max:120'],
         ]);
+        // Refuse anything but a read-only SELECT, and internal addresses, before they are saved.
+        try {
+            if (! empty($data['credentials']['query'])) {
+                \App\Modules\Sales\Services\Mail\DatabaseSourceClient::assertSafe($data['credentials']['query']);
+            }
+            if (! empty($data['credentials']['url'])) {
+                \App\Modules\Sales\Services\Mail\ApiSourceClient::assertSafeUrl(str_replace(['{from}', '{to}'], '2026-01-01', $data['credentials']['url']));
+            }
+        } catch (\RuntimeException $e) {
+            throw \Illuminate\Validation\ValidationException::withMessages([! empty($data['credentials']['query']) && str_contains($e->getMessage(), 'SELECT') ? 'credentials.query' : 'credentials.url' => $e->getMessage()]);
+        }
 
         $creds = array_filter($data['credentials'] ?? [], fn ($v) => $v !== null && $v !== '');
         $data['credentials'] = array_merge($existing?->credentials ?? [], $creds);
-        $data['folder'] = $data['folder'] ?: match ($data['provider']) { 'imap' => 'INBOX', 'sftp' => '/', 'sharepoint' => '', default => 'inbox' };
+        $data['folder'] = $data['folder'] ?: match ($data['provider']) { 'imap' => 'INBOX', 'sftp' => '/', 'sharepoint', 'database', 'api' => '', default => 'inbox' };
         $data['run_days'] = empty($data['run_days']) ? null : array_values(array_map('intval', $data['run_days']));
         // A changed time means today's run is decided by the new time.
         if ($existing && $existing->run_time !== $data['run_time']) {

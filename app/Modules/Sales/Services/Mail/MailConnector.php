@@ -30,6 +30,11 @@ class MailConnector
                 new GraphMailClient((string) ($c['tenant_id'] ?? ''), (string) ($c['client_id'] ?? ''), (string) ($c['client_secret'] ?? ''), ''),
                 (string) $mailbox->mailbox_address, (string) ($mailbox->folder ?? ''), (string) ($c['drive_id'] ?? ''),
             ),
+            // Live connectors (gap 6).
+            'database' => new DatabaseSourceClient((string) ($c['db_driver'] ?? ''), (string) ($c['host'] ?? ''), (int) ($c['port'] ?? 0),
+                (string) ($c['database'] ?? ''), (string) ($mailbox->mailbox_address ?? ''), (string) ($c['password'] ?? ''), (string) ($c['query'] ?? ''), (string) ($c['odbc_dsn'] ?? '')),
+            'api' => new ApiSourceClient((string) ($c['url'] ?? ''), (string) ($c['auth_type'] ?? 'none'), (string) ($c['password'] ?? ''),
+                (string) ($c['header_name'] ?? 'X-API-Key'), (string) ($c['rows_path'] ?? '')),
             default => throw new \RuntimeException("Unknown source type {$mailbox->provider}."),
         };
     }

@@ -67,6 +67,6 @@ class Mailbox extends SalesModel
     /** Method 2: files collected from a secure central repository rather than email. */
     public function isRepository(): bool
     {
-        return in_array($this->provider, ['sftp', 'sharepoint'], true);
+        return in_array($this->provider, ['sftp', 'sharepoint', 'database', 'api'], true);
     }
 }

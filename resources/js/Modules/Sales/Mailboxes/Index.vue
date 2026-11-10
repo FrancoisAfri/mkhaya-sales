@@ -11,7 +11,8 @@ const blank = () => ({
   name: 'Daily sales report', provider: 'graph', mailbox_address: '', folder: '', sender: '', subject_pattern: '', filename_pattern: '',
   extensions: 'xlsx,xls,csv', layout_id: null as number | null, run_time: '03:30', timezone: 'Africa/Johannesburg', run_days: [] as number[],
   lookback_days: 2, missing_after_minutes: 120, auto_commit: true, enabled: true,
-  credentials: { tenant_id: '', client_id: '', client_secret: '', host: '', port: 993, encryption: 'ssl', password: '', private_key: '', host_fingerprint: '', drive_id: '' } as Record<string, any>,
+  credentials: { tenant_id: '', client_id: '', client_secret: '', host: '', port: 993, encryption: 'ssl', password: '', private_key: '', host_fingerprint: '', drive_id: '',
+    db_driver: 'sqlsrv', database: '', odbc_dsn: '', query: '', url: '', auth_type: 'bearer', header_name: 'X-API-Key', rows_path: '' } as Record<string, any>,
 })
 const form = useForm(blank())
 
@@ -32,9 +33,12 @@ const providers = [
   { value: 'imap', title: 'Email — IMAP', icon: 'tabler-mail', label: 'IMAP' },
   { value: 'sftp', title: 'Central repository — SFTP server', icon: 'tabler-server-2', label: 'SFTP repository' },
   { value: 'sharepoint', title: 'Central repository — SharePoint / OneDrive folder', icon: 'tabler-folder-share', label: 'SharePoint repository' },
+  { value: 'database', title: 'Live connection — database (SQL Server, MySQL, PostgreSQL, ODBC)', icon: 'tabler-database', label: 'Database' },
+  { value: 'api', title: 'Live connection — web API (JSON or CSV)', icon: 'tabler-api', label: 'Web API' },
 ]
 const prov = (v: string) => providers.find(p => p.value === v) ?? providers[0]
-const isRepo = (v: string) => v === 'sftp' || v === 'sharepoint'
+const isRepo = (v: string) => ['sftp', 'sharepoint', 'database', 'api'].includes(v)
+const isLive = (v: string) => v === 'database' || v === 'api'
 watch(() => form.provider, (v) => { if (v === 'sftp' && (!form.credentials.port || form.credentials.port === 993)) form.credentials.port = 22; if (v === 'imap' && form.credentials.port === 22) form.credentials.port = 993 })
 const when = (s: string | null) => s ? new Date(s).toLocaleString('en-ZA', { dateStyle: 'medium', timeStyle: 'short' }) : '—'
 const health: Record<string, string> = { healthy: 'success', failing: 'error', new: 'info', disabled: 'default' }
@@ -110,8 +114,8 @@ const runColor: Record<string, string> = { imported: 'success', no_email: 'warni
           <VRow dense>
             <VCol cols="12" md="6"><VTextField v-model="form.name" label="Name *" density="compact" variant="outlined" :error-messages="form.errors.name" /></VCol>
             <VCol cols="12" md="6"><VSelect v-model="form.provider" :items="providers" label="How the report arrives" density="compact" variant="outlined" /></VCol>
-            <VCol cols="12" md="6"><VTextField v-model="form.mailbox_address" :label="({ graph: 'Reporting mailbox address *', imap: 'IMAP login (email) *', sftp: 'SFTP user name *', sharepoint: 'SharePoint site * (e.g. contoso.sharepoint.com/sites/Sales)' } as any)[form.provider]" density="compact" variant="outlined" :error-messages="form.errors.mailbox_address" /></VCol>
-            <VCol cols="12" md="6"><VTextField v-model="form.folder" :label="isRepo(form.provider) ? 'Folder on the repository' : 'Mail folder'" :placeholder="({ graph: 'inbox', imap: 'INBOX', sftp: '/outgoing/sales', sharepoint: 'Shared Documents/Daily sales' } as any)[form.provider]" density="compact" variant="outlined" /></VCol>
+            <VCol v-if="form.provider !== 'api'" cols="12" md="6"><VTextField v-model="form.mailbox_address" :label="({ graph: 'Reporting mailbox address *', imap: 'IMAP login (email) *', sftp: 'SFTP user name *', sharepoint: 'SharePoint site * (e.g. contoso.sharepoint.com/sites/Sales)', database: 'Database user (read-only) *' } as any)[form.provider]" density="compact" variant="outlined" :error-messages="form.errors.mailbox_address" /></VCol>
+            <VCol v-if="!isLive(form.provider)" cols="12" md="6"><VTextField v-model="form.folder" :label="isRepo(form.provider) ? 'Folder on the repository' : 'Mail folder'" :placeholder="({ graph: 'inbox', imap: 'INBOX', sftp: '/outgoing/sales', sharepoint: 'Shared Documents/Daily sales' } as any)[form.provider]" density="compact" variant="outlined" /></VCol>
 
             <template v-if="form.provider === 'graph' || form.provider === 'sharepoint'">
               <VCol v-if="form.provider === 'sharepoint'" cols="12"><VAlert type="info" variant="tonal" density="compact">Register an app in Microsoft Entra ID with <strong>Sites.Selected</strong> (granted on this one site) or <strong>Files.Read.All</strong>. Files are only read — nothing is moved or deleted. Secrets are stored encrypted.</VAlert></VCol>
@@ -120,6 +124,26 @@ const runColor: Record<string, string> = { imported: 'success', no_email: 'warni
               <VCol cols="12" md="4"><VTextField v-model="form.credentials.client_id" label="Application (client) ID" :placeholder="editing?.credential_keys?.includes('client_id') ? '•••• saved' : ''" density="compact" variant="outlined" /></VCol>
               <VCol cols="12" md="4"><VTextField v-model="form.credentials.client_secret" type="password" label="Client secret" :placeholder="editing?.credential_keys?.includes('client_secret') ? '•••• saved' : ''" density="compact" variant="outlined" /></VCol>
               <VCol v-if="form.provider === 'sharepoint'" cols="12"><VTextField v-model="form.credentials.drive_id" label="Drive ID (optional — only if the files are not in the site's main document library)" density="compact" variant="outlined" /></VCol>
+            </template>
+            <template v-else-if="form.provider === 'database'">
+              <VCol cols="12"><VAlert type="info" variant="tonal" density="compact">Reads sales straight from the client's database with one saved SELECT. Use a read-only database user. Only a single SELECT statement is accepted; <code>:from</code> and <code>:to</code> in the query become the look-back dates. The result is imported like a file, through the layout chosen below.</VAlert></VCol>
+              <VCol cols="12" md="4"><VSelect v-model="form.credentials.db_driver" :items="[{ value: 'sqlsrv', title: 'SQL Server' }, { value: 'mysql', title: 'MySQL / MariaDB' }, { value: 'pgsql', title: 'PostgreSQL' }, { value: 'odbc', title: 'ODBC (e.g. SAP HANA)' }]" label="Database type" density="compact" variant="outlined" /></VCol>
+              <template v-if="form.credentials.db_driver !== 'odbc'">
+                <VCol cols="12" md="4"><VTextField v-model="form.credentials.host" label="Server" :placeholder="editing?.credential_keys?.includes('host') ? '•••• saved' : 'db.client.co.za'" density="compact" variant="outlined" /></VCol>
+                <VCol cols="6" md="2"><VTextField v-model.number="form.credentials.port" label="Port" type="number" density="compact" variant="outlined" /></VCol>
+                <VCol cols="6" md="2"><VTextField v-model="form.credentials.database" label="Database" density="compact" variant="outlined" /></VCol>
+              </template>
+              <VCol v-else cols="12" md="8"><VTextField v-model="form.credentials.odbc_dsn" label="ODBC connection string" placeholder="DSN=SAPHANA;SERVERNODE=…" density="compact" variant="outlined" /></VCol>
+              <VCol cols="12" md="6"><VTextField v-model="form.credentials.password" type="password" label="Password" :placeholder="editing?.credential_keys?.includes('password') ? '•••• saved' : ''" density="compact" variant="outlined" /></VCol>
+              <VCol cols="12"><VTextarea v-model="form.credentials.query" rows="4" label="Query (one SELECT)" :placeholder="editing?.credential_keys?.includes('query') ? '•••• saved — type a new query to replace it' : 'SELECT InvDate, AccNo, AccName, Material, Cases, NettValue FROM SalesLines WHERE InvDate BETWEEN :from AND :to'" density="compact" variant="outlined" :error-messages="form.errors['credentials.query']" /></VCol>
+            </template>
+            <template v-else-if="form.provider === 'api'">
+              <VCol cols="12"><VAlert type="info" variant="tonal" density="compact">Reads sales from a web API over HTTPS — JSON rows or a CSV. <code>{from}</code> and <code>{to}</code> in the address become the look-back dates. The rows are imported like a file, through the layout chosen below.</VAlert></VCol>
+              <VCol cols="12"><VTextField v-model="form.credentials.url" label="Address *" :placeholder="editing?.credential_keys?.includes('url') ? '•••• saved' : 'https://api.client.co.za/sales?from={from}&to={to}'" density="compact" variant="outlined" :error-messages="form.errors['credentials.url']" /></VCol>
+              <VCol cols="12" md="4"><VSelect v-model="form.credentials.auth_type" :items="[{ value: 'bearer', title: 'Bearer token' }, { value: 'header', title: 'API key header' }, { value: 'none', title: 'No sign-in' }]" label="Sign-in" density="compact" variant="outlined" /></VCol>
+              <VCol v-if="form.credentials.auth_type === 'header'" cols="12" md="3"><VTextField v-model="form.credentials.header_name" label="Header name" density="compact" variant="outlined" /></VCol>
+              <VCol v-if="form.credentials.auth_type !== 'none'" cols="12" md="5"><VTextField v-model="form.credentials.password" type="password" label="Token / key" :placeholder="editing?.credential_keys?.includes('password') ? '•••• saved' : ''" density="compact" variant="outlined" /></VCol>
+              <VCol cols="12" md="6"><VTextField v-model="form.credentials.rows_path" label="Where the rows are (optional)" placeholder="data.items" hint="Leave empty when the API returns a plain list" persistent-hint density="compact" variant="outlined" /></VCol>
             </template>
             <template v-else-if="form.provider === 'sftp'">
               <VCol cols="12"><VAlert type="info" variant="tonal" density="compact">Secure central repository over SFTP. Use a read-only account limited to the report folder; a key is safer than a password. Files are only read — nothing is moved or deleted. Secrets are stored encrypted; leave blank to keep the saved value.</VAlert></VCol>
@@ -139,7 +163,7 @@ const runColor: Record<string, string> = { imported: 'success', no_email: 'warni
             <VCol cols="12"><VDivider class="my-2" /><div class="text-subtitle-2">{{ isRepo(form.provider) ? 'Which file is the report' : 'Which email is the report' }}</div></VCol>
             <VCol v-if="!isRepo(form.provider)" cols="12" md="4"><VTextField v-model="form.sender" label="Approved sender" placeholder="reports@vector.co.za or @vector.co.za" density="compact" variant="outlined" /></VCol>
             <VCol v-if="!isRepo(form.provider)" cols="12" md="4"><VTextField v-model="form.subject_pattern" label="Subject contains (or /regex/)" placeholder="Daily Sales" density="compact" variant="outlined" /></VCol>
-            <VCol cols="12" md="4"><VTextField v-model="form.filename_pattern" :label="isRepo(form.provider) ? 'File name pattern' : 'Attachment name pattern'" placeholder="*Sales*.xlsx" density="compact" variant="outlined" /></VCol>
+            <VCol v-if="!isLive(form.provider)" cols="12" md="4"><VTextField v-model="form.filename_pattern" :label="isRepo(form.provider) ? 'File name pattern' : 'Attachment name pattern'" placeholder="*Sales*.xlsx" density="compact" variant="outlined" /></VCol>
             <VCol cols="12" md="4"><VTextField v-model="form.extensions" label="Allowed file types" density="compact" variant="outlined" /></VCol>
             <VCol cols="12" md="8"><VSelect v-model="form.layout_id" :items="layouts" item-title="name" item-value="id" clearable label="File layout for this report" density="compact" variant="outlined" /></VCol>
 
