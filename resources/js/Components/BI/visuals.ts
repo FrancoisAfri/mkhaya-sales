@@ -142,7 +142,7 @@ export function buildOption(type: string, d: any): any {
         itemStyle: { borderRadius: horizontal ? [0, 6, 6, 0] : [6, 6, 0, 0], color: i === 1 ? '#D9D2EC' : undefined },
         data: horizontal ? [...x.data].reverse() : x.data, label: { show: type === 'bar_ranked', position: 'right', color: '#6B6B7B', fontSize: 10, formatter: (p: any) => fmt(p.value, fm(x.measure)) } }))
       if (type === 'lollipop') s.push({ type: 'bar', barWidth: 2, data: [...series[0].data].reverse(), itemStyle: { color: '#D9D2EC' }, tooltip: { show: false } })
-      return base({ tooltip: { ...base().tooltip, ...tip(fm(first)) }, xAxis: horizontal ? valAxis(fm(first)) : catAxis(cats), yAxis: horizontal ? catAxis(cats, { axisLabel: { width: 130, overflow: 'truncate', color: '#45455A', fontSize: 11 } }) : valAxis(fm(first)), series: s })
+      return base({ ...(horizontal ? { grid: { left: 8, right: 56, top: 36, bottom: 8, containLabel: true } } : {}), tooltip: { ...base().tooltip, ...tip(fm(first)) }, xAxis: horizontal ? valAxis(fm(first)) : catAxis(cats), yAxis: horizontal ? catAxis(cats, { axisLabel: { width: 130, overflow: 'truncate', color: '#45455A', fontSize: 11 } }) : valAxis(fm(first)), series: s })
     }
     case 'diverging_bar': {
       const cats = [...d.categories].reverse(), data = [...series[0].data].reverse()

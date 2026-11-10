@@ -344,7 +344,7 @@ function addAnswer() {
     <VNavigationDrawer v-model="commentsOpen" location="right" temporary width="400">
       <div class="pa-5 d-flex flex-column gap-3 h-100">
         <div class="d-flex align-center justify-space-between"><h3 class="text-h6">Comments</h3><VBtn icon="tabler-x" variant="text" size="small" @click="commentsOpen = false" /></div>
-        <VSelect v-model="commentWidget" :items="[{ value: null, title: 'All comments' }, ...widgets.map(w => ({ value: w.i, title: w.title }))]" density="compact" variant="outlined" hide-details />
+        <VSelect v-model="commentWidget" :items="[{ value: null, title: 'All comments' }, ...widgets.map(w => ({ value: w.i, title: w.title }))]" density="compact" variant="outlined" hide-details style="flex: 0 0 auto" />
         <div class="bi-comments">
           <div v-for="c in shownComments" :key="c.id" class="bi-comment" :class="{ resolved: c.resolved }">
             <div class="bi-comment__head"><strong>{{ c.by }}</strong><span>{{ when(c.at) }}</span></div>

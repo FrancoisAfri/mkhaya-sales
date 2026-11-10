@@ -80,7 +80,7 @@ class DashboardController extends Controller
         $since = now()->subMonths(3)->startOfMonth()->toDateString();
         $categories = collect($this->analytics->grouped(array_merge($f, ['from' => $since]), $user, ['category'], $measure, 'none', 8)['rows'])
             ->filter(fn ($r) => $r['category_id'] !== null)
-            ->map(function ($r) use ($forecast, $f, $user, $measure) {
+            ->map(function ($r) use ($forecast, $f, $user, $measure, $method) {
                 $c = $forecast->monthly(array_merge($f, ['category_id' => (int) $r['category_id']]), $user, 1, $measure, $method);
 
                 return ['category' => $r['category'], 'month_to_date' => $c['months'][0]['actual'] ?? 0, 'month_end' => $c['months'][0]['forecast'] ?? 0,

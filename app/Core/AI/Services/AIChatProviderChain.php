@@ -46,10 +46,18 @@ class AIChatProviderChain
             $chain = array_values(array_unique(array_merge([$prefer], $chain)));
         }
 
+        // An optional overall budget in seconds: no further provider is started once it is spent,
+        // so a caller that must answer within a page request is not held up by a long fallback chain.
+        $startedAt = microtime(true);
+        $deadline = isset($options['deadline']) ? (float) $options['deadline'] : null;
+
         foreach ($chain as $name) {
             $p = $providers[$name] ?? null;
             if (! $p) {
                 continue;
+            }
+            if ($deadline !== null && microtime(true) - $startedAt >= $deadline) {
+                break;
             }
 
             // A provider whose service has been withdrawn cannot come back, and trying it costs

@@ -46,6 +46,8 @@ class BIQueryService
     public const COMPARE = [
         'last_year' => ['label' => 'Same period last year', 'format' => 'currency'],
         'growth_pct' => ['label' => 'Growth % vs last year', 'format' => 'percent'],
+        'last_year_cases' => ['label' => 'Cases, same period last year', 'format' => 'number'],
+        'cases_growth_pct' => ['label' => 'Cases growth % vs last year', 'format' => 'percent'],
         'target' => ['label' => 'Target', 'format' => 'currency'],
         'achievement_pct' => ['label' => 'Target achievement %', 'format' => 'percent'],
         'variance' => ['label' => 'Variance to target', 'format' => 'currency'],
@@ -468,8 +470,8 @@ class BIQueryService
         )));
         $rows = $this->aggregate($base, $f, $user, $dims);
 
-        $wantsLy = (bool) array_intersect($measures, ['last_year', 'growth_pct']);
-        $ly = $wantsLy ? $this->aggregate(['net_value'], ['from' => CarbonImmutable::parse($f['from'])->subYear()->toDateString(),
+        $wantsLy = (bool) array_intersect($measures, ['last_year', 'growth_pct', 'last_year_cases', 'cases_growth_pct']);
+        $ly = $wantsLy ? $this->aggregate(['net_value', 'quantity'], ['from' => CarbonImmutable::parse($f['from'])->subYear()->toDateString(),
             'to' => CarbonImmutable::parse($f['to'])->subYear()->toDateString()] + $f, $user, $dims, 1) : [];
         $wantsTarget = (bool) array_intersect($measures, ['target', 'achievement_pct', 'variance']);
         $targets = $wantsTarget && isset($dims[0]) && in_array($dims[0], self::GRAINS, true) ? $this->targetBuckets($f['from'], $f['to'], $dims[0]) : [];
@@ -486,7 +488,10 @@ class BIQueryService
                 $r[$b] = (float) ($r[$b] ?? 0);
             }
             $r['last_year'] = (float) ($ly[$key]['net_value'] ?? 0);
-            $r['growth_pct'] = $r['last_year'] > 0 ? round(($r['net_value'] - $r['last_year']) / $r['last_year'] * 100, 1) : null;
+            $r['growth_pct'] = $r['last_year'] > 0 && isset($r['net_value']) ? round(($r['net_value'] - $r['last_year']) / $r['last_year'] * 100, 1) : null;
+            // The same comparison in cases (volume is reported in cases and value, never units).
+            $r['last_year_cases'] = (float) ($ly[$key]['quantity'] ?? 0);
+            $r['cases_growth_pct'] = $r['last_year_cases'] > 0 ? round(((float) ($r['quantity'] ?? 0) - $r['last_year_cases']) / $r['last_year_cases'] * 100, 1) : null;
             $target = $dims ? ($targets[(string) ($r['_k0'] ?? '')] ?? null) : $orgTarget;
             $r['target'] = $target;
             $r['achievement_pct'] = $target ? round($r['net_value'] / $target * 100, 1) : null;
@@ -614,7 +619,7 @@ class BIQueryService
             return Formula::variables($this->customFormula(substr($m, 7)));
         }
 
-        if (in_array($m, ['volume_target', 'volume_achievement_pct'], true)) {
+        if (in_array($m, ['volume_target', 'volume_achievement_pct', 'last_year_cases', 'cases_growth_pct'], true)) {
             return ['quantity'];
         }
 

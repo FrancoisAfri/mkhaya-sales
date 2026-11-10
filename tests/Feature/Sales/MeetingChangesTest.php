@@ -32,6 +32,10 @@ class MeetingChangesTest extends SalesTestCase
         $this->assertEquals(30, $v['volume_target'], '300 cases over 30 days, 3 days in = 30 cases to date.');
         $this->assertEquals(100.0, $v['volume_achievement_pct']);
         $this->assertEquals(30000, $q(['measures' => ['net_value', 'month_target']])['month_target'], 'The run rate uses the whole month, not the part to date.');
+        // Cases compared with last year's cases, without asking for value.
+        $cat = $this->actingAs($admin)->postJson('/sales/bi/query', ['config' => ['kind' => 'category', 'dimension' => 'customer', 'measures' => ['quantity', 'last_year_cases', 'cases_growth_pct']],
+            'filters' => ['from' => '2026-11-01', 'to' => '2026-11-30']])->assertOk()->json('series');
+        $this->assertEquals([30], $cat[0]['data']);
 
         $t = Target::where('metric', 'net_value')->first();
         $ytd = $this->actingAs($admin)->get("/sales/targets/{$t->uuid}?by=week")->assertOk()->viewData('page')['props'];

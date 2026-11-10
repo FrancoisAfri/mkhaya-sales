@@ -23,7 +23,7 @@ class AlertController extends Controller
 
         return Inertia::render('Modules/Sales/Alerts/Index', [
             'alerts' => DB::table('bi_alerts')->where('company_id', SalesCompany::id())->where('user_id', $request->user()->id)->orderBy('name')->get()
-                ->map(fn ($a) => (array) $a + ['filters' => json_decode($a->filters ?? '[]', true), 'channels' => json_decode($a->channels, true)]),
+                ->map(fn ($a) => ['filters' => json_decode($a->filters ?? '[]', true) ?: [], 'channels' => json_decode($a->channels, true) ?: []] + (array) $a),
             'measures' => collect($bi->catalogue())->only(['net_value', 'gross_value', 'quantity', 'discount', 'active_customers', 'active_products', 'transactions', 'avg_selling_price'])
                 ->map(fn ($m, $k) => ['value' => $k, 'title' => $m['label']])->values(),
             'periods' => collect(UserAlertService::PERIODS)->map(fn ($t, $v) => ['value' => $v, 'title' => $t])->values(),

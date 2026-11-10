@@ -46,7 +46,7 @@ class AskService
             . 'Volume is always in cases (measure quantity). "Growth" or "vs last year" means growth_pct or adding last_year. '
             . "Known names — categories: {$names['categories']}; regions: {$names['regions']}; customer groups: {$names['groups']}.";
         try {
-            $text = $this->ai->text($system, $question, ['module' => 'sales_ask', 'max_tokens' => 400, 'temperature' => 0, 'timeout' => 8]);
+            $text = $this->ai->text($system, $question, ['module' => 'sales_ask', 'max_tokens' => 400, 'temperature' => 0, 'timeout' => 6, 'deadline' => 10]);
         } catch (\Throwable) {
             return null;
         }
@@ -88,7 +88,7 @@ class AskService
             default => 'kpi_card',
         };
 
-        return ['visual' => $visual, 'title' => Str::ucfirst($q), 'measures' => $visual === 'diverging_bar' ? ['growth_pct'] : ($growth || $vsLy ? [$measure, $measure === 'net_value' && $vsLy ? 'last_year' : 'growth_pct'] : [$measure]),
+        return ['visual' => $visual, 'title' => Str::ucfirst($q), 'measures' => $visual === 'diverging_bar' ? ['growth_pct'] : ($vsLy ? [$measure, ['net_value' => 'last_year', 'quantity' => 'last_year_cases'][$measure] ?? 'growth_pct'] : ($growth ? [$measure, 'growth_pct'] : [$measure])),
             'dimension' => $dimension ?: null, 'grain' => $has('by week', 'weekly') ? 'week' : 'month', 'period' => $period, 'top' => (int) ($top[1] ?? 10),
             'filters' => $this->namesIn($l), 'explanation' => 'Understood from the words of the question (AI assistant not used).', '_source' => 'keywords'];
     }
@@ -113,14 +113,18 @@ class AskService
         }
         // "… vs last year" always shows last year beside this year (value) or the growth (cases and others).
         if (preg_match('/vs\.? last year|versus last year|compared (to|with) last year|than last year/i', $question)
-            && ! array_intersect($config['measures'], ['last_year', 'growth_pct']) && $config['kind'] !== 'kpi') {
-            $config['measures'][] = $config['measures'][0] === 'net_value' ? 'last_year' : 'growth_pct';
+            && ! array_intersect($config['measures'], ['last_year', 'growth_pct', 'last_year_cases', 'cases_growth_pct']) && $config['kind'] !== 'kpi') {
+            $config['measures'][] = ['net_value' => 'last_year', 'quantity' => 'last_year_cases'][$config['measures'][0]] ?? 'growth_pct';
             if ($visual === 'bar_ranked') {
                 $visual = 'column_clustered';
             }
         }
         if ($visual === 'kpi_card' && count($config['measures']) === 1) {
             $config['measures'][] = 'growth_pct';
+        }
+        // A question in cases is compared in cases: last year's cases and cases growth, never rand.
+        if (in_array('quantity', $config['measures'], true)) {
+            $config['measures'] = array_values(array_unique(array_map(fn ($m) => ['last_year' => 'last_year_cases', 'growth_pct' => 'cases_growth_pct'][$m] ?? $m, $config['measures'])));
         }
 
         return ['type' => $visual, 'title' => Str::limit((string) ($p['title'] ?? $question), 120, ''), 'config' => $config,

@@ -4,7 +4,7 @@ import FilterBar from '@/Components/Sales/FilterBar.vue'
 
 defineProps<{ snapshot: string | null; stock: any[]; promotions: any[]; prices: any[]; asOf: string; filters: Record<string, any>; options: Record<string, any[]> }>()
 const n = (v: any) => (v === null || v === undefined ? '—' : Number(v).toLocaleString('en-ZA', { maximumFractionDigits: 0 }))
-const r = (v: any) => (v === null || v === undefined ? '—' : 'R ' + Number(v).toLocaleString('en-ZA', { maximumFractionDigits: 2 }))
+const r = (v: any) => (v === null || v === undefined ? '—' : 'R ' + Number(v).toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 }))
 const coverTone = (d: number | null) => (d === null ? 'default' : d < 7 ? 'error' : d < 14 ? 'warning' : d > 60 ? 'info' : 'success')
 const coverText = (d: number | null) => (d === null ? 'not selling' : d < 7 ? 'runs out soon' : d < 14 ? 'watch' : d > 60 ? 'overstocked' : 'healthy')
 const tone = (v: number | null) => (v === null ? undefined : v >= 0 ? '#2E7D32' : '#C62828')
@@ -34,7 +34,7 @@ const tone = (v: number | null) => (v === null ? undefined : v >= 0 ? '#2E7D32' 
       <VTable v-if="promotions.length" density="comfortable" hover>
         <thead><tr><th>Promotion</th><th>Covers</th><th>Dates</th><th class="text-end">Cases during</th><th class="text-end">Cases before</th><th class="text-end">Uplift</th><th class="text-end">Value during</th></tr></thead>
         <tbody><tr v-for="p in promotions" :key="p.name + p.start"><td class="font-weight-medium">{{ p.name }} <VChip v-if="p.running" size="x-small" color="primary" variant="tonal">running</VChip>
-          <div class="text-caption text-medium-emphasis">{{ [p.mechanic, p.discount_pct ? p.discount_pct + '% off' : null].filter(Boolean).join(' · ') }}</div></td>
+          <div class="text-caption text-medium-emphasis">{{ [p.mechanic, p.discount_pct ? Number(p.discount_pct) + '% off' : null].filter(Boolean).join(' · ') }}</div></td>
           <td class="text-caption">{{ p.covers }}</td><td class="text-caption">{{ p.start }} → {{ p.end }} ({{ p.days }} days)</td><td class="text-end">{{ n(p.cases) }}</td><td class="text-end">{{ n(p.cases_before) }}</td>
           <td class="text-end font-weight-bold" :style="{ color: tone(p.uplift) }">{{ p.uplift === null ? '—' : (p.uplift > 0 ? '+' : '') + p.uplift + '%' }}</td><td class="text-end">{{ r(p.value) }}</td></tr></tbody>
       </VTable>

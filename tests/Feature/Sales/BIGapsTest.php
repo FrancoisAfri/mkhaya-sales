@@ -53,7 +53,7 @@ class BIGapsTest extends SalesTestCase
         $r = $this->actingAs($admin)->postJson('/sales/bi/ask', ['question' => 'Top 5 customers by Pizza cases this month vs last year'])->assertOk()->json();
         $this->assertSame('keywords', $r['source']);
         $this->assertSame('customer', $r['config']['dimension']);
-        $this->assertSame(['quantity', 'growth_pct'], $r['config']['measures']);
+        $this->assertSame(['quantity', 'last_year_cases'], $r['config']['measures'], 'Cases are compared with last year\'s cases.');
         $this->assertSame('mtd', $r['config']['period']);
         $this->assertSame(5, $r['config']['top']);
         $this->assertSame($pizza->id, $r['config']['filters']['category_id']);
