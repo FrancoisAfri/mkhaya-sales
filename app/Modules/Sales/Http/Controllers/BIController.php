@@ -124,6 +124,24 @@ class BIController extends Controller
         return response()->json($this->bi->run($data['config'], $this->query->filters(new Request($data['filters'] ?? [])), $request->user()));
     }
 
+    /** Board pack (gap 10): the dashboard as PowerPoint or a print-ready PDF, charts as drawn on screen. */
+    public function boardPack(Request $request, string $uuid, \App\Modules\Sales\Services\BI\BoardPackService $pack)
+    {
+        abort_unless($request->user()->can('dashboards.view') && $request->user()->can('reports.export'), 403);
+        $dash = $this->visible($request)->where('uuid', $uuid)->firstOrFail();
+        $data = $request->validate([
+            'format' => ['required', Rule::in(['pptx', 'pdf'])], 'period' => ['nullable', 'string', 'max:120'],
+            'items' => ['required', 'array', 'max:60'], 'items.*.title' => ['required', 'string', 'max:150'],
+            'items.*.image' => ['nullable', 'string', 'max:4000000', 'starts_with:data:image/png;base64,'],
+            'items.*.text' => ['nullable', 'string', 'max:600'],
+        ]);
+        $file = $pack->build($data['format'], $dash->name, (string) DB::table('companies')->where('id', SalesCompany::id())->value('name'),
+            $data['period'] ?? '', $data['items']);
+        activity('sales')->causedBy($request->user())->withProperties(['dashboard' => $dash->name, 'format' => $data['format']])->log('board pack export');
+
+        return response()->download($file['path'], $file['name'], ['Content-Type' => $file['mime']])->deleteFileAfterSend();
+    }
+
     /** "Ask a question, get a chart" (gap 2): words → a validated visual configuration. */
     public function ask(Request $request, \App\Modules\Sales\Services\BI\AskService $ask): JsonResponse
     {

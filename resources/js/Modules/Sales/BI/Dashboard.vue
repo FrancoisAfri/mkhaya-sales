@@ -111,6 +111,19 @@ const mentionHint = computed(() => { const m = newComment.value.match(/@([\p{L}]
 function pickMention(p: any) { newComment.value = newComment.value.replace(/@([\p{L}]*)$/u, p.name.includes(' ') ? `@"${p.name}" ` : `@${p.name} `) }
 onMounted(loadComments)
 
+// ── Board pack (gap 10): PowerPoint or print-ready PDF of this dashboard as it is on screen ──
+const visualRefs: Record<string, any> = {}
+const packing = ref(false)
+async function boardPack(format: 'pptx' | 'pdf') {
+  packing.value = true
+  try {
+    const items = [...widgets.value].sort((a, b) => a.y - b.y || a.x - b.x).map(w => visualRefs[w.i]?.snapshot?.()).filter((x: any) => x && (x.image || x.text))
+    const period = appliedFilters.value.from ? `${appliedFilters.value.from} to ${appliedFilters.value.to ?? ''}` : `Data up to ${props.lastSale ?? ''}`
+    const r = await axios.post(`/sales/bi/${props.dashboard.uuid}/board-pack`, { format, period, items }, { responseType: 'blob' })
+    const a = document.createElement('a'); a.href = URL.createObjectURL(r.data); a.download = `${name.value}.${format}`; a.click(); URL.revokeObjectURL(a.href)
+  } finally { packing.value = false }
+}
+
 // ── Version history and certification (gap 12) ──
 const historyOpen = ref(false)
 const versions = ref<any[]>([])
@@ -181,7 +194,14 @@ function addAnswer() {
               <div class="d-flex gap-2 pa-2"><VTextField v-model="bmName" placeholder="Save current view as…" density="compact" variant="outlined" hide-details /><VBtn icon="tabler-check" size="small" color="primary" :disabled="!bmName" @click="saveBookmark" /></div>
             </VCard>
           </VMenu>
-          <VBtn variant="text" icon="tabler-printer" title="Export to PDF / print" @click="exportPdf" />
+          <VMenu location="bottom end">
+            <template #activator="{ props: p }"><VBtn v-bind="p" variant="text" icon="tabler-presentation" title="Board pack" :loading="packing" /></template>
+            <VList density="compact">
+              <VListItem prepend-icon="tabler-file-type-ppt" title="PowerPoint board pack" @click="boardPack('pptx')" />
+              <VListItem prepend-icon="tabler-file-type-pdf" title="PDF board pack (one chart per page)" @click="boardPack('pdf')" />
+              <VListItem prepend-icon="tabler-printer" title="Print this page" @click="exportPdf" />
+            </VList>
+          </VMenu>
           <VBtn variant="text" title="Comments" @click="openCommentsFor(null)"><VBadge :model-value="openComments.length > 0" :content="openComments.length" color="primary" floating><VIcon icon="tabler-message-circle" /></VBadge></VBtn>
           <VBtn variant="text" icon="tabler-history" title="Version history" @click="openHistory" />
           <VBtn v-if="canEdit || canShareLink" variant="text" icon="tabler-share" title="Share" @click="share = true" />
@@ -232,7 +252,7 @@ function addAnswer() {
 
     <GridLayout v-model:layout="widgets" :col-num="12" :row-height="30" :margin="[16, 16]" :is-draggable="edit" :is-resizable="edit" :responsive="true" :breakpoints="{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }" :cols="{ lg: 12, md: 12, sm: 6, xs: 2, xxs: 1 }" use-css-transforms @layout-updated="dirty = edit">
       <GridItem v-for="w in widgets" :key="w.i" :i="w.i" :x="w.x" :y="w.y" :w="w.w" :h="w.h" :min-w="2" :min-h="3" drag-ignore-from=".bi-card__body, .v-btn">
-        <Visual :widget="w" :filters="appliedFilters" :editing="edit" @filter="onCrossFilter" @edit="configuring = w" @remove="remove(w)" @duplicate="duplicate(w)" @comment="openCommentsFor(w.i)" />
+        <Visual :ref="el => (visualRefs[w.i] = el)" :widget="w" :filters="appliedFilters" :editing="edit" @filter="onCrossFilter" @edit="configuring = w" @remove="remove(w)" @duplicate="duplicate(w)" @comment="openCommentsFor(w.i)" />
       </GridItem>
     </GridLayout>
     <div v-if="!widgets.length" class="bi-blank"><VIcon icon="tabler-layout-dashboard" size="40" /><p>This dashboard is empty.</p><VBtn color="primary" @click="edit = true; library = true">Add your first visual</VBtn></div>

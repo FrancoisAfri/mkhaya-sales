@@ -124,5 +124,6 @@ Route::prefix('sales')->name('sales.')->middleware(\App\Modules\Sales\Http\Middl
     Route::get('bi/{uuid}', [BIController::class, 'show'])->whereUuid('uuid')->name('bi.show');
     Route::put('bi/{uuid}', [BIController::class, 'update'])->whereUuid('uuid')->name('bi.update');
     Route::delete('bi/{uuid}', [BIController::class, 'destroy'])->whereUuid('uuid')->name('bi.destroy');
+    Route::post('bi/{uuid}/board-pack', [BIController::class, 'boardPack'])->whereUuid('uuid')->middleware('throttle:10,1,sales.bi.boardpack')->name('bi.boardpack');
     Route::post('bi/{uuid}/bookmarks', [BIController::class, 'saveBookmark'])->whereUuid('uuid')->name('bi.bookmarks');
 });

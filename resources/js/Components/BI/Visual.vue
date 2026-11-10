@@ -148,6 +148,22 @@ function onClick(p: any) {
   const key = d.keys[p.dataIndex !== undefined ? (props.widget.type.startsWith('bar') || props.widget.type === 'lollipop' || props.widget.type === 'diverging_bar' ? d.keys.length - 1 - p.dataIndex : p.dataIndex) : -1]
   if (key !== undefined && key !== 'other') emit('filter', { dimension: dim, key, label: p.name })
 }
+// "Alert me on this" (gap 3): open My alerts with this visual's number and filters filled in.
+const alertable = computed(() => ['kpi', 'time', 'category', 'table'].includes(v.value.kind) && !special.value)
+function alertMe() {
+  const c: any = effectiveConfig.value
+  const measure = (c.measures ?? ['net_value']).find((m: string) => !['last_year', 'growth_pct', 'target', 'achievement_pct', 'variance', 'volume_target', 'volume_achievement_pct', 'month_target'].includes(m)) ?? 'net_value'
+  const q = new URLSearchParams({ measure, name: props.widget.title ?? '', filters: JSON.stringify({ ...props.filters, ...(c.filters ?? {}), from: undefined, to: undefined }) })
+  window.location.href = '/sales/alerts?' + q.toString()
+}
+// Board pack (gap 10): a picture of the chart, or the text of a number card / table.
+const cardEl = ref<HTMLElement | null>(null)
+function snapshot() {
+  const image = chart.value?.getDataURL?.({ type: 'png', pixelRatio: 1.5, backgroundColor: '#fff' }) ?? null
+  const text = image ? null : (cardEl.value?.querySelector('.bi-card__body') as HTMLElement | null)?.innerText?.trim().slice(0, 600) ?? null
+  return { title: props.widget.title || v.value.name, image, text }
+}
+defineExpose({ snapshot })
 function drillThrough() {
   const q = new URLSearchParams(Object.entries(props.filters).map(([k, x]) => [k, String(x)]))
   window.location.href = '/sales/records?' + q.toString()
@@ -174,7 +190,7 @@ const heat = (val: number, max: number) => `rgba(106,13,173,${Math.min(0.85, 0.0
 </script>
 
 <template>
-  <div class="bi-card">
+  <div ref="cardEl" class="bi-card">
     <div class="bi-card__head">
       <div class="bi-card__title" :title="widget.title">{{ widget.title || v.name }}</div>
       <div class="bi-card__actions">
@@ -194,6 +210,7 @@ const heat = (val: number, max: number) => `rgba(106,13,173,${Math.min(0.85, 0.0
             <VListItem v-if="option" prepend-icon="tabler-photo-down" title="Download PNG" @click="exportPng" />
             <VListItem prepend-icon="tabler-refresh" title="Refresh" @click="load" />
             <VListItem prepend-icon="tabler-message-circle" title="Comment on this visual" @click="emit('comment')" />
+            <VListItem v-if="alertable" prepend-icon="tabler-bell-plus" title="Alert me on this" @click="alertMe" />
           </VList>
         </VMenu>
       </div>
