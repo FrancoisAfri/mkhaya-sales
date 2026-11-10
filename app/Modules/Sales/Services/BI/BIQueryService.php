@@ -467,7 +467,8 @@ class BIQueryService
             'to' => CarbonImmutable::parse($f['to'])->subYear()->toDateString()] + $f, $user, $dims, 1) : [];
         $wantsTarget = (bool) array_intersect($measures, ['target', 'achievement_pct', 'variance']);
         $targets = $wantsTarget && isset($dims[0]) && in_array($dims[0], self::GRAINS, true) ? $this->targetBuckets($f['from'], $f['to'], $dims[0]) : [];
-        $orgTarget = $wantsTarget && ! $dims ? array_sum($this->targetBuckets($f['from'], $f['to'], 'year')) : null;
+        // No approved target = no target (shown as "—"), never a target of R 0.
+        $orgTarget = $wantsTarget && ! $dims ? (array_sum($this->targetBuckets($f['from'], $f['to'], 'year')) ?: null) : null;
         // Volume targets are company-wide case targets (metric "quantity"), kept apart from value targets.
         $wantsVolume = (bool) array_intersect($measures, ['volume_target', 'volume_achievement_pct']);
         $volTargets = $wantsVolume && isset($dims[0]) && in_array($dims[0], self::GRAINS, true) ? $this->targetBuckets($f['from'], $f['to'], $dims[0], 'quantity') : [];
