@@ -68,8 +68,8 @@ class ERPCopilotService
         // the enforcement mode blocks), answer with a top-up prompt instead of
         // calling the model.
         $aiQuota = app(\App\Modules\Tenancy\Services\AiQuota::class);
-        if ($aiQuota->blocked()) {
-            return $this->quotaBlockedResponse($sessionId);
+        if ($reason = $aiQuota->blockReason($user)) {
+            return $this->quotaBlockedResponse($sessionId, $reason);
         }
 
         AiChatSession::firstOrCreate(
@@ -204,16 +204,19 @@ class ERPCopilotService
     }
 
     /** Synthetic assistant reply when the company is out of AI tokens. */
-    private function quotaBlockedResponse(string $sessionId): array
+    private function quotaBlockedResponse(string $sessionId, string $reason = 'company'): array
     {
         return [
             'session_id'    => $sessionId,
             'quota_blocked' => true,
-            'quota_warning' => 'Your monthly AI token allowance is exhausted. Request or buy more to continue.',
+            'quota_reason'  => $reason,
+            'quota_warning' => \App\Modules\Tenancy\Services\AiQuota::blockedMessage($reason),
             'message' => [
                 'id'        => 0,
                 'role'      => 'assistant',
-                'content'   => "🚫 **AI is paused for this month.**\n\nYour company has used its entire monthly AI token allowance. To keep using the assistant you can **request more tokens** or **buy a top-up** from *Usage & Add-ons* in Settings, or ask a platform admin to grant more.",
+                'content'   => $reason === 'user'
+                    ? "🚫 **AI is paused for you this month.**\n\nYou have used your monthly AI allowance. Ask your administrator to raise it, or it resets on the 1st."
+                    : "🚫 **AI is paused for this month.**\n\nYour company has used its entire monthly AI token allowance. To keep using the assistant you can **request more tokens** or **buy a top-up** from *Usage & Add-ons* in Settings, or ask a platform admin to grant more.",
                 'metadata'  => ['quota_blocked' => true],
                 'timestamp' => now()->toISOString(),
             ],

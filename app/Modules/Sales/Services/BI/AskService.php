@@ -27,9 +27,14 @@ class AskService
     public function ask(string $question): array
     {
         $question = Str::limit(trim($question), 300, '');
-        $plan = $this->viaAi($question) ?? $this->viaKeywords($question);
+        // Out of AI allowance (company or person): answer from the words only, and say why.
+        $blocked = app(\App\Modules\Tenancy\Services\AiQuota::class)->blockReason();
+        $plan = ($blocked ? null : $this->viaAi($question)) ?? $this->viaKeywords($question);
+        if ($blocked) {
+            $plan['explanation'] = \App\Modules\Tenancy\Services\AiQuota::blockedMessage($blocked) . ' This chart was understood from the words of the question instead.';
+        }
 
-        return $this->clean($plan, $question);
+        return $this->clean($plan, $question) + ['ai_blocked' => $blocked];
     }
 
     private function viaAi(string $question): ?array

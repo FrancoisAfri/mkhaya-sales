@@ -328,7 +328,7 @@ class HandleInertiaRequests extends Middleware
             }
 
             return [
-                'ai' => app(AiQuota::class)->snapshot($company),
+                'ai' => app(AiQuota::class)->snapshot($company) + ['me' => app(AiQuota::class)->userSnapshot($request->user())],
                 'sms' => app(SmsQuota::class)->snapshot($company),
                 'storage' => app(StorageQuota::class)->snapshot($company),
             ];

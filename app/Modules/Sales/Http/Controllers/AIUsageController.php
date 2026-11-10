@@ -36,6 +36,35 @@ class AIUsageController extends Controller
             'recent' => $base()->leftJoin('users as u', 'u.id', '=', 'a.user_id')->orderByDesc('a.id')->limit(50)
                 ->get(['a.created_at', 'u.email', 'a.category', 'a.provider', 'a.model_used', 'a.total_tokens', 'a.cost_usd', 'a.success', 'a.error_message', 'a.input_summary']),
             'usdToZar' => (float) config('services.ai.usd_zar', 18.5),
+            // Per-user allowances (2026-11-10).
+            'userDefault' => $company?->ai_user_token_quota,
+            'people' => \App\Core\User\Models\User::where('company_id', $c)->where('status', 1)->get()->map(fn ($u) => [
+                'id' => $u->id, 'name' => $u->name, 'email' => $u->email, 'own' => $u->ai_token_quota] + app(AiQuota::class)->userSnapshot($u))
+                ->sortByDesc('used')->values(),
+            'canManage' => $request->user()->can('settings.manage'),
         ]);
+    }
+
+    /** The monthly ceiling every user gets unless set on them (blank = no per-user ceiling). */
+    public function saveDefault(Request $request): \Illuminate\Http\RedirectResponse
+    {
+        abort_unless($request->user()->can('settings.manage'), 403);
+        $data = $request->validate(['tokens' => ['nullable', 'integer', 'min:0', 'max:1000000000']]);
+        Company::whereKey(SalesCompany::id())->update(['ai_user_token_quota' => $data['tokens']]);
+        activity('sales')->causedBy($request->user())->withProperties(['tokens' => $data['tokens']])->log('default AI allowance per user changed');
+
+        return back()->with('success', $data['tokens'] === null ? 'No per-user ceiling: people share the company allowance.' : 'Each user may now use up to ' . number_format($data['tokens']) . ' tokens a month.');
+    }
+
+    /** One person's own ceiling (blank = the company default, 0 = no AI). */
+    public function saveUser(Request $request, int $id): \Illuminate\Http\RedirectResponse
+    {
+        abort_unless($request->user()->can('settings.manage'), 403);
+        $user = \App\Core\User\Models\User::where('company_id', SalesCompany::id())->findOrFail($id);
+        $data = $request->validate(['tokens' => ['nullable', 'integer', 'min:0', 'max:1000000000']]);
+        DB::table('users')->where('id', $user->id)->update(['ai_token_quota' => $data['tokens']]);
+        activity('sales')->causedBy($request->user())->performedOn($user)->withProperties(['tokens' => $data['tokens']])->log('AI allowance changed');
+
+        return back()->with('success', "Allowance updated for {$user->name}.");
     }
 }

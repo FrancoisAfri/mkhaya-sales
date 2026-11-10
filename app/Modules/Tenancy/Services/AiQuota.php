@@ -160,6 +160,69 @@ class AiQuota
         return $used >= $ceiling;
     }
 
+    // ── Per-user allowance (2026-11-10) ─────────────────────────────────────────────────────────
+
+    /** This person's monthly ceiling: their own, else the company default. null = no per-user ceiling. */
+    public function userQuota(?\App\Core\User\Models\User $user): ?int
+    {
+        if (! $user || $user->is_platform_admin || $user->is_master_admin) {
+            return null;
+        }
+        if ($user->ai_token_quota !== null) {
+            return (int) $user->ai_token_quota;
+        }
+        $company = $user->company_id ? Company::find($user->company_id) : $this->currentCompany();
+
+        return $company?->ai_user_token_quota !== null ? (int) $company->ai_user_token_quota : null;
+    }
+
+    public function userUsedThisMonth(int $userId): int
+    {
+        return (int) DB::table('ai_usage_log')->where('user_id', $userId)->where('created_at', '>=', now()->startOfMonth())->sum('total_tokens');
+    }
+
+    /**
+     * Why AI is refused right now for this person, or null when it may run.
+     * 'company' = the company's monthly allowance is used up; 'user' = this person's is.
+     */
+    public function blockReason(?\App\Core\User\Models\User $user = null): ?string
+    {
+        $user ??= auth()->user();
+        if (! config('ai.quota.enabled', true) || config('edition.edition', 'saas') === 'self_hosted') {
+            return null;
+        }
+        if ($this->blocked()) {
+            return 'company';
+        }
+        if (! $this->isEnforced() && ! $user?->company_id) {
+            return null;
+        }
+        $quota = $this->userQuota($user);
+        if ($quota !== null && $user && $this->userUsedThisMonth($user->id) >= $quota) {
+            return 'user';
+        }
+
+        return null;
+    }
+
+    /** What the person is told when they are blocked. */
+    public static function blockedMessage(string $reason): string
+    {
+        return $reason === 'user'
+            ? 'You have used your monthly AI allowance. AI is paused for you until next month — ask your administrator to raise your allowance.'
+            : 'Your company has used its monthly AI allowance. AI is paused until next month — request or buy more tokens under Usage & Add-ons.';
+    }
+
+    /** The person's own allowance, for the screens. */
+    public function userSnapshot(?\App\Core\User\Models\User $user): array
+    {
+        $quota = $this->userQuota($user);
+        $used = $user ? $this->userUsedThisMonth($user->id) : 0;
+
+        return ['quota' => $quota, 'used' => $used, 'remaining' => $quota === null ? null : max(0, $quota - $used),
+            'percent' => $quota ? min(999, round($used / $quota * 100, 1)) : 0.0, 'blocked_reason' => $this->blockReason($user)];
+    }
+
     /** Throw if the active company is blocked. Safe no-op otherwise. */
     public function ensureWithinQuota(): void
     {

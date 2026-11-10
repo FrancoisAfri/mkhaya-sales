@@ -71,6 +71,8 @@ Route::prefix('sales')->name('sales.')->middleware(\App\Modules\Sales\Http\Middl
     Route::get('forecast', [DashboardController::class, 'forecast'])->name('forecast');
     Route::get('insights', [InsightsController::class, 'index'])->name('insights');
     Route::get('ai-usage', [AIUsageController::class, 'index'])->name('ai-usage');
+    Route::put('ai-usage/allowance', [AIUsageController::class, 'saveDefault'])->name('ai-usage.allowance');
+    Route::put('ai-usage/users/{id}/allowance', [AIUsageController::class, 'saveUser'])->whereNumber('id')->name('ai-usage.user-allowance');
     Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
     Route::get('reports/export/{format}', [ReportController::class, 'export'])->middleware('throttle:30,1,sales.reports.export')->name('reports.export');
     Route::post('reports/saved', [ReportController::class, 'save'])->name('reports.save');

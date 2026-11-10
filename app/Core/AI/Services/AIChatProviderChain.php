@@ -46,6 +46,12 @@ class AIChatProviderChain
             $chain = array_values(array_unique(array_merge([$prefer], $chain)));
         }
 
+        // AI allowances (company and per user): once used up, no request leaves the system.
+        if (! ($options['quota_checked'] ?? false) && ($reason = app(\App\Modules\Tenancy\Services\AiQuota::class)->blockReason())) {
+            return ['text' => '', 'tokens' => 0, 'metadata' => ['error' => 'quota_exceeded', 'reason' => $reason,
+                'message' => \App\Modules\Tenancy\Services\AiQuota::blockedMessage($reason)]];
+        }
+
         // An optional overall budget in seconds: no further provider is started once it is spent,
         // so a caller that must answer within a page request is not held up by a long fallback chain.
         $startedAt = microtime(true);
@@ -203,7 +209,7 @@ class AIChatProviderChain
         $messages[] = ['role' => 'user', 'content' => $user];
 
         $res = $this->complete($messages, $options);
-        if (($res['metadata']['error'] ?? null) === 'all_providers_failed') {
+        if (in_array($res['metadata']['error'] ?? null, ['all_providers_failed', 'quota_exceeded'], true)) {
             return null;
         }
 

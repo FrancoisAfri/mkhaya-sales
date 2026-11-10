@@ -24,6 +24,11 @@ abstract class AbstractAgent implements AIAgentInterface
      */
     public function ask(AgentRequest $request): AgentResponse
     {
+        // AI allowances (company and per user): once used up, no request leaves the system.
+        if ($reason = app(\App\Modules\Tenancy\Services\AiQuota::class)->blockReason()) {
+            return AgentResponse::failure(\App\Modules\Tenancy\Services\AiQuota::blockedMessage($reason), $this->providerName());
+        }
+
         $attempts  = config('ai.retry.attempts', 3);
         $sleepMs   = config('ai.retry.sleep_ms', 500);
         $lastError = null;
